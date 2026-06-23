@@ -1,0 +1,10 @@
+VPN 連線中斷紀錄
+
+[09:12:03] tunnel established
+[09:48:21] WARNING latency 480ms
+[09:51:10] ERROR connection reset by peer
+[09:51:11] reconnecting...
+[09:53:40] ERROR handshake timeout
+[10:02:55] connection dropped (x6 in 30min)
+
+備註：多位同仁同時段回報，疑似閘道端問題。

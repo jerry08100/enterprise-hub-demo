@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>部門行事曆 Team Calendar — 企業平台</title>
+<style>
+  :root{
+    --bg:#EEF4F5; --surface:#FFFFFF; --surface-2:#F1F6F7;
+    --ink:#14323A; --ink-2:#566D74; --ink-3:#8Aa0a6;
+    --line:#DBE8EB; --line-2:#E8F0F1;
+    --accent:#0E7490; --accent-ink:#0B5A70; --accent-soft:#DBEFF3;
+    --today:#FFF8E7; --today-line:#E8CF95; --over:#C0392B; --over-bg:#F8E7E4; --ok:#0F8A72;
+    --r:14px; --r-sm:9px; --r-lg:18px;
+    --sh-1:0 1px 2px rgba(14,50,58,.05);
+    --sh-2:0 16px 40px rgba(14,50,58,.12),0 2px 8px rgba(14,50,58,.06);
+    --glow:0 8px 22px rgba(14,116,144,.26);
+    --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{min-height:100%}
+  body{font-family:"Microsoft JhengHei","PingFang TC",-apple-system,"Segoe UI",system-ui,sans-serif;
+    background:radial-gradient(rgba(14,50,58,.035) 1px,transparent 1px) 0 0/24px 24px,radial-gradient(1000px 560px at 88% -12%,rgba(14,116,144,.10),transparent 60%),var(--bg);
+    background-attachment:fixed;color:var(--ink);font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased;min-height:100vh}
+  svg{display:block} a{text-decoration:none;color:inherit} button{font-family:inherit}
+  .wrap{max-width:1240px;margin:0 auto;padding:32px 24px 70px}
+
+  .topbar{display:flex;align-items:center;gap:13px;margin-bottom:14px;flex-wrap:wrap}
+  .topbar .logo{width:46px;height:46px;border-radius:13px;background:var(--accent);color:#fff;display:grid;place-items:center;box-shadow:var(--glow);flex:none}
+  .topbar b{font-size:18px} .topbar .en{display:block;font-size:10px;color:var(--ink-3);letter-spacing:.2em;font-family:var(--mono)}
+  .topbar .right{margin-left:auto;display:flex;align-items:center;gap:10px}
+  .who{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:5px 7px 5px 13px;box-shadow:var(--sh-1)}
+  .who .nm{font-size:12.5px;font-weight:600} .who .av{width:28px;height:28px;border-radius:50%;background:var(--accent-soft);color:var(--accent-ink);display:grid;place-items:center;font-weight:700;font-size:12px}
+  .home-btn{display:inline-flex;align-items:center;gap:7px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:8px 14px;font-size:13px;font-weight:600;color:var(--ink-2);box-shadow:var(--sh-1);transition:.15s}
+  .home-btn:hover{border-color:var(--accent);color:var(--accent-ink)}
+
+  .hero{margin:14px 0 16px}
+  .hero .k{display:inline-flex;align-items:center;gap:9px;font-family:var(--mono);color:var(--accent);font-size:11px;letter-spacing:.2em;margin-bottom:10px}
+  .hero .k::before{content:"";width:26px;height:2px;background:var(--accent);border-radius:2px}
+  .hero h1{font-size:27px;font-weight:800;letter-spacing:-.02em;display:flex;align-items:center;gap:11px;flex-wrap:wrap}
+  .hero h1 .deptbadge{font-size:13px;font-weight:700;color:var(--accent-ink);background:var(--accent-soft);border-radius:999px;padding:4px 12px}
+  .hero p{color:var(--ink-2);font-size:13px;margin-top:7px;max-width:640px;line-height:1.6}
+
+  .layout{display:grid;grid-template-columns:1fr 330px;gap:18px;align-items:start}
+  @media(max-width:980px){.layout{grid-template-columns:1fr}}
+
+  .toolbar{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+  .seg{display:flex;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:3px;box-shadow:var(--sh-1)}
+  .seg button{border:none;background:none;font-family:inherit;font-size:12.5px;font-weight:700;color:var(--ink-2);padding:7px 15px;border-radius:999px;cursor:pointer;transition:.15s}
+  .seg button.active{background:var(--accent);color:#fff;box-shadow:0 4px 11px -3px var(--accent)}
+  .nav{width:34px;height:34px;border-radius:9px;border:1px solid var(--line);background:var(--surface);color:var(--ink-2);font-size:18px;font-weight:700;cursor:pointer;box-shadow:var(--sh-1);line-height:1}
+  .nav:hover{border-color:var(--accent);color:var(--accent-ink)}
+  .period{font-family:var(--mono);font-size:14px;font-weight:800;color:var(--accent-ink);min-width:130px;text-align:center}
+  .btn-today{font-size:12.5px;font-weight:700;padding:8px 13px;border-radius:9px;border:1px solid var(--line);background:var(--surface);color:var(--ink-2);cursor:pointer;box-shadow:var(--sh-1)}
+  .btn-today:hover{border-color:var(--accent);color:var(--accent-ink)}
+  .btn-add{margin-left:auto;display:inline-flex;align-items:center;gap:7px;background:var(--accent);color:#fff;border:none;border-radius:10px;padding:9px 15px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:var(--glow);transition:.15s}
+  .btn-add:hover{filter:brightness(1.06);transform:translateY(-1px)}
+
+  .calbox{border:1px solid var(--line);border-radius:var(--r-lg);background:var(--surface);box-shadow:var(--sh-1);overflow:hidden}
+
+  /* 月 */
+  .mgrid{display:grid;grid-template-columns:repeat(7,1fr)}
+  .dow{background:var(--surface-2);padding:9px 6px;text-align:center;font-size:12px;font-weight:700;color:var(--ink-2);border-bottom:1px solid var(--line)}
+  .dow.we{color:var(--accent-ink)}
+  .cell{min-height:104px;border-right:1px solid var(--line-2);border-bottom:1px solid var(--line-2);padding:5px 5px 6px;cursor:pointer;position:relative;transition:.1s}
+  .cell:nth-child(7n){border-right:none}
+  .cell:hover{background:var(--surface-2)}
+  .cell.out{background:var(--surface-2);color:var(--ink-3)}
+  .cell.today{background:var(--accent-soft)}
+  .cell .dn{font-size:12.5px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;border-radius:50%}
+  .cell.today .dn{background:var(--accent);color:#fff}
+  .cell.out .dn{color:var(--ink-3);font-weight:600}
+  .cell .evs{margin-top:3px;display:flex;flex-direction:column;gap:2px}
+  .ev{display:flex;align-items:center;gap:5px;width:100%;text-align:left;border:none;border-radius:6px;padding:2px 6px;cursor:pointer;background:var(--surface-2);border-left:3px solid var(--ink-3);font-size:11px;line-height:1.35;overflow:hidden}
+  .ev:hover{filter:brightness(.97)}
+  .ev .oi{width:15px;height:15px;border-radius:50%;background:var(--ink-3);color:#fff;display:grid;place-items:center;font-size:9px;font-weight:700;flex:none}
+  .ev .etx{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600;color:var(--ink)}
+  .ev .etm{font-family:var(--mono);font-size:10px;color:var(--ink-2);flex:none}
+  .ev.mine{background:var(--accent-soft);border-left-color:var(--accent)} .ev.mine .oi{background:var(--accent)} .ev.mine .etm{color:var(--accent-ink)}
+  .more{font-size:10.5px;font-weight:700;color:var(--accent-ink);background:none;border:none;cursor:pointer;padding:1px 6px;text-align:left}
+
+  /* 週 */
+  .wgrid{display:grid;grid-template-columns:repeat(7,1fr)}
+  .wcol{border-right:1px solid var(--line-2);min-height:340px}
+  .wcol:last-child{border-right:none}
+  .wcol .wh{padding:9px 8px;text-align:center;border-bottom:1px solid var(--line);background:var(--surface-2)}
+  .wcol .wh.today{background:var(--accent-soft)}
+  .wcol .wh .wd{font-size:11px;color:var(--ink-3);font-weight:600} .wcol .wh .wn{font-family:var(--mono);font-size:15px;font-weight:800;color:var(--accent-ink)}
+  .wcol .wb{padding:7px;display:flex;flex-direction:column;gap:5px;cursor:pointer;min-height:120px}
+  .wcol .wb:hover{background:var(--surface-2)}
+  .wev{border:none;border-radius:8px;padding:6px 8px;text-align:left;cursor:pointer;background:var(--surface-2);border-left:3px solid var(--ink-3)}
+  .wev .t{font-family:var(--mono);font-size:10.5px;font-weight:700;color:var(--ink-2)} .wev .ti{font-size:12px;font-weight:600;margin-top:1px} .wev .by{font-size:10.5px;color:var(--ink-3);margin-top:1px}
+  .wev.mine{background:var(--accent-soft);border-left-color:var(--accent)} .wev.mine .t{color:var(--accent-ink)}
+
+  /* 年 */
+  .ygrid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;padding:16px}
+  @media(max-width:760px){.ygrid{grid-template-columns:repeat(2,1fr)}}
+  .ym{border:1px solid var(--line);border-radius:12px;overflow:hidden;cursor:pointer;transition:.12s}
+  .ym:hover{border-color:var(--accent);box-shadow:var(--sh-1)}
+  .ym .ymh{background:var(--surface-2);padding:7px 10px;font-size:12.5px;font-weight:800;color:var(--accent-ink);display:flex;justify-content:space-between;align-items:center}
+  .ym .ymh .c{font-family:var(--mono);font-size:10px;color:var(--ink-3)}
+  .ym .ymg{display:grid;grid-template-columns:repeat(7,1fr);padding:6px;gap:1px}
+  .ym .yd{aspect-ratio:1;display:grid;place-items:center;font-size:9.5px;color:var(--ink-2);position:relative;border-radius:4px}
+  .ym .yd.out{color:transparent} .ym .yd.today{background:var(--accent);color:#fff;font-weight:700}
+  .ym .yd.has::after{content:"";position:absolute;bottom:1px;width:4px;height:4px;border-radius:50%;background:var(--accent)}
+  .ym .yd.today.has::after{background:#fff}
+
+  /* 待辦 */
+  .todo{border:1px solid var(--line);border-radius:var(--r-lg);background:var(--surface);box-shadow:var(--sh-1);padding:16px 16px 18px;position:sticky;top:18px}
+  .todo h3{font-size:15px;font-weight:800;display:flex;align-items:center;gap:8px}
+  .todo .sub{font-size:11.5px;color:var(--ink-3);margin:2px 0 13px}
+  .td-tabs{display:flex;gap:4px;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:3px;margin:2px 0 9px}
+  .td-tabs button{flex:1;border:none;background:none;font-family:inherit;font-size:12px;font-weight:700;color:var(--ink-2);padding:6px;border-radius:8px;cursor:pointer;transition:.13s}
+  .td-tabs button.active{background:var(--accent);color:#fff}
+  .td-add{display:flex;flex-direction:column;gap:8px;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:11px}
+  .td-add input{width:100%;font-family:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink)}
+  .td-add input:focus{outline:none;border-color:var(--accent)}
+  .td-add .row{display:flex;gap:8px}
+  .td-add .row input[type=date]{flex:1}
+  .td-add .row button{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap}
+  .td-list{margin-top:14px;display:flex;flex-direction:column;gap:7px}
+  .td{display:flex;align-items:flex-start;gap:10px;padding:9px 10px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+  .td .chk{width:20px;height:20px;border:2px solid var(--ink-3);border-radius:6px;cursor:pointer;flex:none;display:grid;place-items:center;margin-top:1px;transition:.12s}
+  .td .chk:hover{border-color:var(--accent)}
+  .td.done .chk{background:var(--ok);border-color:var(--ok)}
+  .td .body{flex:1;min-width:0}
+  .td .tx{font-size:13px;font-weight:600;word-break:break-word} .td.done .tx{text-decoration:line-through;color:var(--ink-3)}
+  .td .due{font-size:11px;color:var(--ink-3);margin-top:2px;display:inline-flex;align-items:center;gap:4px}
+  .td .due.over{color:var(--over)} .td .due.done{color:var(--ok)}
+  .td .del{border:none;background:none;color:var(--ink-3);cursor:pointer;font-size:16px;line-height:1;padding:2px 4px;flex:none}
+  .td .del:hover{color:var(--over)}
+  .td-empty{font-size:12.5px;color:var(--ink-3);text-align:center;padding:14px}
+  .arch-toggle{margin-top:14px;width:100%;text-align:left;border:none;background:none;font-size:12.5px;font-weight:700;color:var(--ink-2);cursor:pointer;display:flex;align-items:center;gap:6px;padding:6px 0}
+  .arch-list{display:none;flex-direction:column;gap:6px;margin-top:4px}
+  .arch-list.show{display:flex}
+
+  .foot{margin-top:22px;color:var(--ink-3);font-size:12px;line-height:1.7;border-top:1px solid var(--line);padding-top:14px}
+  .demo-flag{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--accent-ink);background:var(--accent-soft);padding:2px 9px;border-radius:999px;font-weight:600}
+
+  .ov{display:none;position:fixed;inset:0;background:rgba(14,40,46,.46);z-index:100;place-items:center;padding:20px}
+  .ov.show{display:grid}
+  .modal{background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--sh-2);width:min(440px,100%);max-height:88vh;overflow:auto;animation:pop .16s ease}
+  @keyframes pop{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
+  .modal h3{font-size:16px;font-weight:800;padding:18px 20px 0} .modal .sub2{font-size:12px;color:var(--ink-3);padding:3px 20px 0}
+  .mbody{padding:16px 20px;display:flex;flex-direction:column;gap:13px}
+  .fld label{display:block;font-size:12px;font-weight:700;color:var(--ink-2);margin-bottom:5px}
+  .fld input{width:100%;font-family:inherit;font-size:13.5px;padding:9px 11px;border:1px solid var(--line);border-radius:9px;background:var(--surface-2);color:var(--ink)}
+  .fld input:focus{outline:none;border-color:var(--accent);background:var(--surface)}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+  .err{font-size:12px;color:#e06a5f;background:rgba(192,57,43,.12);border:1px solid rgba(192,57,43,.3);border-radius:8px;padding:7px 11px;display:none}.err.show{display:block}
+  .view-line{display:flex;align-items:center;gap:9px;font-size:13.5px;color:var(--ink)} .view-line svg{color:var(--accent-ink);flex:none}
+  .daylist{display:flex;flex-direction:column;gap:7px}
+  .mfoot{display:flex;gap:9px;justify-content:flex-end;padding:14px 20px 18px;align-items:center}
+  .btn{border:none;border-radius:9px;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
+  .btn.ghost{background:var(--surface-2);color:var(--ink-2);border:1px solid var(--line)} .btn.go{background:var(--accent);color:#fff;box-shadow:var(--glow)}
+  .btn.danger{background:var(--surface);color:var(--over);border:1px solid var(--line)} .btn.danger:hover{border-color:var(--over)}
+  .mfoot .spread{margin-right:auto}
+
+  .toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(20px);background:#16223A;color:#fff;padding:11px 20px;border-radius:999px;font-size:13.5px;font-weight:600;box-shadow:var(--sh-2);opacity:0;transition:.3s;z-index:200;display:flex;gap:9px;pointer-events:none}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+<script src="../08_共用/theme.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div class="logo" id="logo"></div>
+    <div><b>部門行事曆</b><span class="en">TEAM CALENDAR</span></div>
+    <div class="right">
+      <div class="who"><span class="nm" id="whoNm"></span><span class="av" id="whoAv"></span></div>
+      <a class="home-btn" href="../index.html"><span id="homeic"></span>回平台首頁</a>
+    </div>
+  </div>
+
+  <div class="hero">
+    <div class="k">部門共享</div>
+    <h1>部門行事曆 <span class="deptbadge" id="deptBadge"></span></h1>
+    <p>只顯示你所屬部門的行事曆（看不到其他部門）。部門同事的會議唯讀，只有自己的可編輯。右側可記個人待辦。測試資料。</p>
+  </div>
+
+  <div class="layout">
+    <div>
+      <div class="toolbar">
+        <div class="seg">
+          <button id="v-month" onclick="setView('month')">月</button>
+          <button id="v-week" onclick="setView('week')">週</button>
+          <button id="v-year" onclick="setView('year')">年</button>
+        </div>
+        <button class="nav" onclick="step(-1)" title="上一個">‹</button>
+        <span class="period" id="period"></span>
+        <button class="nav" onclick="step(1)" title="下一個">›</button>
+        <button class="btn-today" onclick="goToday()">今天</button>
+        <button class="btn-add" onclick="openAdd(TODAY)"><span id="addic"></span>新增我的會議</button>
+      </div>
+      <div class="calbox" id="cal"></div>
+    </div>
+
+    <div class="todo">
+      <h3><span id="todoic"></span>待辦</h3>
+      <div class="td-tabs"><button id="tt-me" class="active" onclick="setTodoTab('me')">我的待辦</button><button id="tt-dept" onclick="setTodoTab('dept')">部門待辦</button></div>
+      <div class="sub" id="todoSub">只有你看得到</div>
+      <div class="td-add">
+        <input id="td-text" maxlength="60" placeholder="新增待辦事項…" onkeydown="if(event.key==='Enter')addTodo()">
+        <div class="row"><input id="td-due" type="date"><button onclick="addTodo()">加入</button></div>
+      </div>
+      <div class="td-list" id="todoList"></div>
+      <button class="arch-toggle" id="archToggle" onclick="toggleArch()"></button>
+      <div class="arch-list" id="archList"></div>
+    </div>
+  </div>
+
+  <div class="foot"><span class="demo-flag">測試</span>　測試階段 · 使用測試資料，尚未接資料庫。行事曆與待辦皆存於共用資料層、跨分頁同步。</div>
+</div>
+
+<div class="ov" id="ov"><div class="modal" id="modal"></div></div>
+<div class="toast" id="toast"></div>
+
+<script src="../08_共用/store.js"></script>
+<script>
+const IC={
+  cal:'<rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 9.6h17M8 3.5v3.2M16 3.5v3.2"/>',
+  home:'<path d="M3.5 11.5 12 4.2l8.5 7.3M5.8 10v9.6h12.4V10"/>',
+  plus:'<path d="M12 5.5v13M5.5 12h13"/>',
+  clock:'<circle cx="12" cy="12" r="8.4"/><path d="M12 7.6V12l3 1.8"/>',
+  pin:'<path d="M12 21s7-5.6 7-11a7 7 0 0 0-14 0c0 5.4 7 11 7 11Z"/><circle cx="12" cy="10" r="2.5"/>',
+  user:'<circle cx="12" cy="8" r="3.4"/><path d="M5.5 20c0-3.4 2.9-5.6 6.5-5.6s6.5 2.2 6.5 5.6"/>',
+  check2:'<path d="M5 12.5l4.5 4.5L19 7"/>',
+  list:'<path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/>'
+};
+const ic=(n,s=18)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${IC[n]||IC.cal}</svg>`;
+document.getElementById("logo").innerHTML=ic("cal",24);
+document.getElementById("homeic").innerHTML=ic("home",15);
+document.getElementById("addic").innerHTML=ic("plus",16);
+document.getElementById("todoic").innerHTML=ic("list",17);
+
+const esc=EHub.esc, ymd=EHub.ymd, addD=EHub.addDays;
+const ME=EHub.getSession()||{name:"測試使用者",dept:"資訊部"};
+const DEPT=ME.dept;                                  // 鎖定自己的部門，不可切換
+document.getElementById("whoNm").textContent=ME.name;
+document.getElementById("whoAv").textContent=ME.name[0];
+document.getElementById("deptBadge").textContent=DEPT;
+
+const WK=["日","一","二","三","四","五","六"], MON=["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"];
+const TODAY=ymd(EHub.today0());
+let CAL=EHub.loadCal(), TODOS=EHub.loadTodos();
+let nextEv=CAL.reduce((m,e)=>Math.max(m,e.id),0)+1;
+let nextTd=TODOS.reduce((m,t)=>Math.max(m,t.id),0)+1;
+let view="month", cursor=TODAY, archOpen=false;
+
+const toMin=t=>{const[h,m]=t.split(":").map(Number);return h*60+m};
+function dateOf(s){return new Date(s+"T00:00:00")}
+function evOn(date){return CAL.filter(e=>e.dept===DEPT&&e.date===date).sort((a,b)=>toMin(a.s)-toMin(b.s))}
+
+function setView(v){view=v;render()}
+function goToday(){cursor=TODAY;render()}
+function step(n){
+  const d=dateOf(cursor);
+  if(view==="month")cursor=ymd(new Date(d.getFullYear(),d.getMonth()+n,1));
+  else if(view==="week")cursor=ymd(addD(d,n*7));
+  else cursor=ymd(new Date(d.getFullYear()+n,d.getMonth(),1));
+  render();
+}
+
+function render(){
+  ["month","week","year"].forEach(v=>document.getElementById("v-"+v).classList.toggle("active",v===view));
+  const d=dateOf(cursor);
+  if(view==="month"){document.getElementById("period").textContent=`${d.getFullYear()}年 ${d.getMonth()+1}月`;renderMonth(d)}
+  else if(view==="week"){renderWeek(d)}
+  else {document.getElementById("period").textContent=`${d.getFullYear()}年`;renderYear(d)}
+  renderTodos();
+}
+
+/* ---- 月 ---- */
+function monthCells(d){const y=d.getFullYear(),m=d.getMonth();const first=new Date(y,m,1);const start=addD(first,-first.getDay());const a=[];for(let i=0;i<42;i++)a.push(addD(start,i));return {y,m,a}}
+function renderMonth(d){
+  const {y,m,a}=monthCells(d);
+  const head=`<div class="mgrid">${WK.map((w,i)=>`<div class="dow ${i===0||i===6?"we":""}">週${w}</div>`).join("")}`;
+  const cells=a.map(dt=>{
+    const ds=ymd(dt), out=dt.getMonth()!==m, today=ds===TODAY;
+    const evs=evOn(ds);
+    const show=evs.slice(0,3).map(e=>evChip(e)).join("");
+    const more=evs.length>3?`<button class="more" onclick="openDay('${ds}');event.stopPropagation()">+${evs.length-3} 更多</button>`:"";
+    return `<div class="cell ${out?"out":""} ${today?"today":""}" onclick="openAdd('${ds}')"><span class="dn">${dt.getDate()}</span><div class="evs">${show}${more}</div></div>`;
+  }).join("");
+  document.getElementById("cal").innerHTML=head+cells+`</div>`;
+}
+function evChip(e){const mine=e.owner===ME.name;
+  return `<button class="ev ${mine?"mine":""}" onclick="openEvent(${e.id});event.stopPropagation()"><span class="oi">${esc(e.owner[0])}</span><span class="etm">${e.s}</span><span class="etx">${esc(e.title)}</span></button>`}
+
+/* ---- 週 ---- */
+function renderWeek(d){
+  const start=addD(d,-d.getDay());const days=[];for(let i=0;i<7;i++)days.push(addD(start,i));
+  const a=days[0],b=days[6];
+  document.getElementById("period").textContent=`${a.getMonth()+1}/${a.getDate()} – ${b.getMonth()+1}/${b.getDate()}`;
+  document.getElementById("cal").innerHTML=`<div class="wgrid">${days.map(dt=>{
+    const ds=ymd(dt),today=ds===TODAY;const evs=evOn(ds);
+    const body=evs.map(e=>{const mine=e.owner===ME.name;return `<button class="wev ${mine?"mine":""}" onclick="openEvent(${e.id});event.stopPropagation()"><div class="t">${e.s}–${e.e}</div><div class="ti">${esc(e.title)}</div><div class="by">${esc(e.owner)}${e.loc?" · "+esc(e.loc):""}</div></button>`}).join("");
+    return `<div class="wcol"><div class="wh ${today?"today":""}"><div class="wd">週${WK[dt.getDay()]}</div><div class="wn">${dt.getDate()}</div></div><div class="wb" onclick="openAdd('${ds}')">${body}</div></div>`;
+  }).join("")}</div>`;
+}
+
+/* ---- 年 ---- */
+function renderYear(d){
+  const y=d.getFullYear();
+  const html=MON.map((mn,m)=>{
+    const first=new Date(y,m,1),start=addD(first,-first.getDay());const cells=[];for(let i=0;i<42;i++)cells.push(addD(start,i));
+    let cnt=0;
+    const grid=cells.map(dt=>{const ds=ymd(dt),out=dt.getMonth()!==m,today=ds===TODAY;const has=!out&&evOn(ds).length>0;if(has)cnt++;return `<div class="yd ${out?"out":""} ${today?"today":""} ${has?"has":""}">${dt.getDate()}</div>`}).join("");
+    return `<div class="ym" onclick="openMonth(${y},${m})"><div class="ymh"><span>${mn}</span><span class="c">${cnt?cnt+" 事":""}</span></div><div class="ymg">${grid}</div></div>`;
+  }).join("");
+  document.getElementById("cal").innerHTML=`<div class="ygrid">${html}</div>`;
+}
+function openMonth(y,m){view="month";cursor=ymd(new Date(y,m,1));render()}
+
+/* ===== 會議 modal ===== */
+const ov=document.getElementById("ov");
+function closeModal(){ov.classList.remove("show");document.getElementById("modal").innerHTML=""}
+ov.addEventListener("click",e=>{if(e.target===ov)closeModal()});
+function showErr(m){const el=document.getElementById("err");if(el){el.textContent=m;el.classList.add("show")}}
+function dlabel(s){const dt=dateOf(s);return `${dt.getMonth()+1}/${dt.getDate()}（週${WK[dt.getDay()]}）`}
+
+function evForm(ev,date){return `
+  <div class="err" id="err"></div>
+  <div class="fld"><label>會議名稱</label><input id="f-title" maxlength="40" placeholder="例：專案進度會議" value="${ev?esc(ev.title):""}"></div>
+  <div class="fld"><label>日期</label><input id="f-date" type="date" value="${ev?ev.date:date}"></div>
+  <div class="row2"><div class="fld"><label>開始</label><input id="f-s" type="time" step="900" value="${ev?ev.s:"09:00"}"></div>
+    <div class="fld"><label>結束</label><input id="f-e" type="time" step="900" value="${ev?ev.e:"10:00"}"></div></div>
+  <div class="fld"><label>地點（選填）</label><input id="f-loc" maxlength="30" placeholder="例：A 會議室 / 線上" value="${ev?esc(ev.loc||""):""}"></div>`}
+function openAdd(date){
+  document.getElementById("modal").innerHTML=`<h3>新增我的會議</h3><div class="sub2">${DEPT}・${ME.name}</div><div class="mbody">${evForm(null,date||TODAY)}</div>
+    <div class="mfoot"><button class="btn ghost" onclick="closeModal()">取消</button><button class="btn go" onclick="saveEvent(0)">新增</button></div>`;
+  ov.classList.add("show");setTimeout(()=>document.getElementById("f-title").focus(),40);
+}
+function openEvent(id){
+  const e=CAL.find(x=>x.id===id);if(!e)return;
+  if(e.owner===ME.name){
+    document.getElementById("modal").innerHTML=`<h3>編輯會議</h3><div class="sub2">${DEPT}・${ME.name}</div><div class="mbody">${evForm(e)}</div>
+      <div class="mfoot"><button class="btn danger spread" onclick="delEvent(${id})">刪除</button><button class="btn ghost" onclick="closeModal()">取消</button><button class="btn go" onclick="saveEvent(${id})">儲存</button></div>`;
+    ov.classList.add("show");setTimeout(()=>document.getElementById("f-title").focus(),40);
+  }else{
+    document.getElementById("modal").innerHTML=`<h3>${esc(e.title)}</h3><div class="sub2">${esc(e.owner)}（${esc(e.dept)}）· 唯讀</div>
+      <div class="mbody"><div class="view-line">${ic("cal",16)} ${dlabel(e.date)}</div><div class="view-line">${ic("clock",16)} ${e.s} – ${e.e}</div>${e.loc?`<div class="view-line">${ic("pin",16)} ${esc(e.loc)}</div>`:""}<div class="view-line">${ic("user",16)} ${esc(e.owner)}</div></div>
+      <div class="mfoot"><button class="btn go" onclick="closeModal()">關閉</button></div>`;
+    ov.classList.add("show");
+  }
+}
+function openDay(ds){
+  const evs=evOn(ds);
+  document.getElementById("modal").innerHTML=`<h3>${dlabel(ds)}</h3><div class="sub2">${DEPT}・共 ${evs.length} 場會議</div>
+    <div class="mbody"><div class="daylist">${evs.map(e=>{const mine=e.owner===ME.name;return `<button class="wev ${mine?"mine":""}" onclick="closeModal();openEvent(${e.id})"><div class="t">${e.s}–${e.e}</div><div class="ti">${esc(e.title)}</div><div class="by">${esc(e.owner)}${e.loc?" · "+esc(e.loc):""}</div></button>`}).join("")}</div></div>
+    <div class="mfoot"><button class="btn ghost" onclick="closeModal()">關閉</button><button class="btn go" onclick="closeModal();openAdd('${ds}')">新增我的會議</button></div>`;
+  ov.classList.add("show");
+}
+function readEv(){return {title:document.getElementById("f-title").value.trim(),date:document.getElementById("f-date").value,s:document.getElementById("f-s").value,e:document.getElementById("f-e").value,loc:document.getElementById("f-loc").value.trim()}}
+function saveEvent(id){
+  const f=readEv();
+  if(!f.title)return showErr("請填寫會議名稱。");
+  if(!f.date)return showErr("請選擇日期。");
+  if(!f.s||!f.e||toMin(f.e)<=toMin(f.s))return showErr("結束時間需晚於開始時間。");
+  if(id){const e=CAL.find(x=>x.id===id);if(!e||e.owner!==ME.name)return;Object.assign(e,{date:f.date,s:f.s,e:f.e,title:f.title,loc:f.loc});EHub.saveCal(CAL);toast("會議已更新")}
+  else{CAL.push({id:nextEv++,owner:ME.name,dept:DEPT,date:f.date,s:f.s,e:f.e,title:f.title,loc:f.loc});EHub.saveCal(CAL);toast("已新增會議");cursor=f.date}
+  closeModal();render();
+}
+function delEvent(id){const e=CAL.find(x=>x.id===id);if(!e||e.owner!==ME.name)return;CAL=CAL.filter(x=>x.id!==id);EHub.saveCal(CAL);closeModal();render();toast("會議已刪除")}
+
+/* ===== 待辦 ===== */
+let todoTab="me";
+function setTodoTab(t){todoTab=t;
+  document.getElementById("tt-me").classList.toggle("active",t==="me");
+  document.getElementById("tt-dept").classList.toggle("active",t==="dept");
+  document.getElementById("todoSub").textContent=t==="me"?"只有你看得到":`全 ${DEPT} 共用，大家都看得到`;
+  renderTodos();}
+function curTodos(){return todoTab==="me"
+  ? TODOS.filter(t=>(t.scope||"me")==="me"&&t.owner===ME.name)
+  : TODOS.filter(t=>t.scope==="dept"&&t.dept===DEPT);}
+function renderTodos(){
+  const all=curTodos();
+  const act=all.filter(t=>!t.done).sort((a,b)=>(a.due||"9999").localeCompare(b.due||"9999"));
+  const arc=all.filter(t=>t.done).sort((a,b)=>(b.doneAt||"").localeCompare(a.doneAt||""));
+  const by=t=>todoTab==="dept"?` · ${esc(t.owner)}`:"";
+  document.getElementById("todoList").innerHTML=act.length?act.map(t=>{
+    const over=t.due&&t.due<TODAY;
+    return `<div class="td"><div class="chk" onclick="doneTodo(${t.id})"></div><div class="body"><div class="tx">${esc(t.text)}</div><div class="due ${over?"over":""}">${t.due?`${ic("clock",12)} ${over?"已逾期 ":"預計 "}${t.due.slice(5)}`:""}${by(t)}</div></div><button class="del" onclick="delTodo(${t.id})" title="刪除">×</button></div>`;
+  }).join(""):`<div class="td-empty">${todoTab==="me"?"目前沒有待辦，新增一筆吧。":"部門目前沒有共同待辦。"}</div>`;
+  document.getElementById("archToggle").innerHTML=`備存（${arc.length}）${archOpen?"▴":"▾"}`;
+  const al=document.getElementById("archList");al.classList.toggle("show",archOpen);
+  al.innerHTML=arc.map(t=>`<div class="td done"><div class="chk" onclick="undoneTodo(${t.id})">${ic("check2",13)}</div><div class="body"><div class="tx">${esc(t.text)}</div><div class="due done">${ic("check2",12)} 完成於 ${(t.doneAt||"").slice(5)}${by(t)}</div></div><button class="del" onclick="delTodo(${t.id})" title="刪除">×</button></div>`).join("")||`<div class="td-empty">尚無備存。</div>`;
+}
+function addTodo(){
+  const tx=document.getElementById("td-text").value.trim();if(!tx)return;
+  const due=document.getElementById("td-due").value;
+  const base={id:nextTd++,owner:ME.name,text:tx,due:due||"",done:false,doneAt:""};
+  if(todoTab==="dept"){base.scope="dept";base.dept=DEPT}else{base.scope="me"}
+  TODOS.push(base);
+  EHub.saveTodos(TODOS);
+  document.getElementById("td-text").value="";document.getElementById("td-due").value="";
+  renderTodos();toast(todoTab==="dept"?"已加入部門待辦":"已加入我的待辦");
+}
+function doneTodo(id){const t=TODOS.find(x=>x.id===id);if(!t)return;t.done=true;t.doneAt=TODAY;EHub.saveTodos(TODOS);renderTodos();toast("已完成 · 存入備存")}
+function undoneTodo(id){const t=TODOS.find(x=>x.id===id);if(!t)return;t.done=false;t.doneAt="";EHub.saveTodos(TODOS);renderTodos();toast("已移回待辦")}
+function delTodo(id){TODOS=TODOS.filter(x=>x.id!==id);EHub.saveTodos(TODOS);renderTodos();toast("已刪除")}
+function toggleArch(){archOpen=!archOpen;renderTodos()}
+
+let tt;
+function toast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("show");clearTimeout(tt);tt=setTimeout(()=>t.classList.remove("show"),2300)}
+
+render();
+window.addEventListener("storage",e=>{if(e.key===EHub.CAL_KEY){CAL=EHub.loadCal();nextEv=CAL.reduce((m,x)=>Math.max(m,x.id),0)+1;render()}if(e.key===EHub.TODO_KEY){TODOS=EHub.loadTodos();nextTd=TODOS.reduce((m,x)=>Math.max(m,x.id),0)+1;renderTodos()}});
+</script>
+</body>
+</html>

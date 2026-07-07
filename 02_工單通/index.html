@@ -1,0 +1,1264 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>工單通 TicketHub — 前端 Demo（MVP 完整流程）</title>
+<style>
+  :root{
+    /* 主色：白；輔助色：深藍 navy */
+    --bg:#EEF2F9; --surface:#FFFFFF; --surface-2:#F1F5FB;
+    --ink:#16223A; --ink-2:#5A6786; --ink-3:#8A95AD;
+    --line:#E1E7F1; --line-2:#EDF1F8;
+    --accent:#1E3A8A; --accent-ink:#1E3A8A; --accent-soft:#E5EAF6;
+    /* 功能性狀態色（資料編碼用） */
+    --s-open:#2563A8;     --s-open-bg:#E5EFF8;
+    --s-progress:#B7791F; --s-progress-bg:#FBF1DD;
+    --s-appr:#5B4B8A;     --s-appr-bg:#ECE9F6;
+    --s-need:#C2603B;     --s-need-bg:#FAE8DF;
+    --s-transfer:#2A7B8C; --s-transfer-bg:#E1F0F2;
+    --s-resolved:#2F8F5B; --s-resolved-bg:#E4F1E9;
+    --s-closed:#5C6B82;   --s-closed-bg:#EBEEF3;
+    --danger:#C0392B;     --danger-bg:#F8E7E4;
+    --r:12px; --r-sm:8px; --r-lg:16px;
+    --sh-1:0 1px 2px rgba(22,34,58,.05);
+    --sh-2:0 12px 30px rgba(22,34,58,.10), 0 2px 6px rgba(22,34,58,.05);
+    --glow:0 4px 16px rgba(30,58,138,.22);
+    --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:"Microsoft JhengHei","PingFang TC",-apple-system,"Segoe UI",system-ui,sans-serif;
+    background:
+      radial-gradient(1100px 600px at 84% -12%, rgba(30,58,138,.07), transparent 60%),
+      radial-gradient(820px 480px at 2% 108%, rgba(30,58,138,.04), transparent 55%),
+      var(--bg);
+    background-attachment:fixed;
+    color:var(--ink); font-size:14px; line-height:1.55; -webkit-font-smoothing:antialiased;
+  }
+  input::placeholder,textarea::placeholder{color:var(--ink-3)}
+  .mono{font-family:var(--mono);text-transform:uppercase;letter-spacing:.14em;font-size:11px}
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+  a{color:inherit;text-decoration:none}
+  svg{display:block}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+
+  #app{min-height:100%}
+  .layout{display:grid;grid-template-columns:248px 1fr;height:100vh;overflow:hidden}
+
+  /* sidebar */
+  .sidebar{background:var(--surface);border-right:1px solid var(--line);display:flex;flex-direction:column;height:100%;overflow-y:auto}
+  .brand{display:flex;align-items:center;gap:11px;padding:20px 20px 18px;border-bottom:1px solid var(--line-2)}
+  .brand .logo{width:38px;height:38px;border-radius:10px;background:var(--accent);color:#fff;display:grid;place-items:center;flex:none;box-shadow:var(--glow)}
+  .brand b{font-size:16px;letter-spacing:.01em}
+  .brand .en{display:block;font-size:10px;color:var(--ink-3);letter-spacing:.18em;font-family:var(--mono)}
+  .nav{padding:14px 12px;display:flex;flex-direction:column;gap:3px;flex:1}
+  .nav .lbl{font-family:var(--mono);text-transform:uppercase;letter-spacing:.16em;font-size:10px;color:var(--ink-3);padding:12px 12px 6px}
+  .nav a{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:var(--r-sm);color:var(--ink-2);font-weight:500;transition:.15s}
+  .nav a:hover{background:var(--surface-2);color:var(--ink)}
+  .nav a.active{background:var(--accent-soft);color:var(--accent-ink)}
+  .nav a .ic{color:currentColor;flex:none}
+  .nav a .count{margin-left:auto;font-size:12px;background:var(--surface-2);color:var(--ink-2);padding:1px 8px;border-radius:999px;font-weight:600}
+  .nav a.active .count{background:var(--surface);color:var(--accent-ink)}
+  .nav a .count.hot{background:var(--danger);color:#fff}
+
+  .userbox{border-top:1px solid var(--line-2);padding:14px 12px}
+  .role-pick{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;color:var(--ink-3);padding:4px 8px 8px;text-transform:uppercase}
+  .ucard{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--r-sm);background:var(--surface-2)}
+  .ucard .av{width:34px;height:34px;border-radius:50%;background:var(--accent-soft);color:var(--accent-ink);display:grid;place-items:center;font-weight:700;flex:none;font-size:14px}
+  .ucard .nm{font-weight:600;font-size:13px;line-height:1.2}
+  .ucard select{margin-top:2px;font-family:inherit;font-size:11.5px;color:var(--ink);border:1px solid var(--line);background:var(--surface-2);border-radius:6px;padding:2px 4px;width:100%}
+  .ucard .rl{font-size:11px;color:var(--ink-2)}
+  .ucard .logout{margin-left:auto;color:var(--ink-3);padding:4px}
+  .ucard .logout:hover{color:var(--danger)}
+  .demo-sw{width:100%;font-family:inherit;font-size:12px;color:var(--ink);border:1px solid var(--line);background:var(--surface-2);border-radius:6px;padding:6px 8px;margin-top:6px;cursor:pointer}
+
+  /* topbar */
+  .main{display:flex;flex-direction:column;min-width:0;height:100vh;overflow:hidden}
+  .topbar{height:62px;background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 28px;flex:none;z-index:20;position:relative}
+  .topbar h1{font-size:17px;font-weight:700}
+  .search{margin-left:auto;display:flex;align-items:center;gap:8px;background:none;border:none;border-bottom:1.5px solid var(--line);border-radius:0;padding:6px 2px;width:260px;color:var(--ink-3);transition:border-color .15s}
+  .search:focus-within{border-bottom-color:var(--accent)}
+  .search input{border:none;background:none;outline:none;font-family:inherit;font-size:13px;color:var(--ink);width:100%}
+  .iconbtn{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;color:var(--ink-2);position:relative}
+  .iconbtn:hover{background:var(--surface-2);color:var(--ink)}
+  .iconbtn .badge-n{position:absolute;top:4px;right:4px;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:var(--danger);color:#fff;font-size:10px;font-weight:700;display:grid;place-items:center;border:2px solid var(--surface)}
+
+  /* content */
+  .content{padding:26px 28px 48px;max-width:1240px;width:100%;margin:0 auto;flex:1;overflow-y:auto}
+  .pagehead{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:22px}
+  .pagehead .k{font-family:var(--mono);color:var(--accent);font-size:11px;letter-spacing:.18em;margin-bottom:6px}
+  .pagehead h2{font-size:26px;font-weight:800;letter-spacing:-.01em;line-height:1.1}
+  .pagehead p{color:var(--ink-2);margin-top:5px;font-size:13.5px}
+
+  .btn{display:inline-flex;align-items:center;gap:7px;padding:9px 16px;border-radius:var(--r-sm);font-weight:600;font-size:13.5px;transition:.15s;border:1px solid transparent}
+  .btn-primary{background:var(--accent);color:var(--on-accent,#fff);box-shadow:var(--glow)}
+  .btn-primary:hover{background:var(--accent-ink);box-shadow:var(--sh-2)}
+  .btn-ghost{background:var(--surface-2);color:var(--ink);border-color:var(--line)}
+  .btn-ghost:hover{border-color:var(--ink-3)}
+  .btn-danger,.btn.danger{background:rgba(192,57,43,.14);color:#d9534f;border:1px solid rgba(192,57,43,.34)}
+  .btn-danger:hover,.btn.danger:hover{background:rgba(192,57,43,.24)}
+  .btn-sm{padding:6px 12px;font-size:12.5px}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:22px}
+  .kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px 18px 16px;box-shadow:var(--sh-1)}
+  .kpi .tile{width:42px;height:42px;border-radius:11px;display:grid;place-items:center;margin-bottom:14px}
+  .kpi .v{font-size:30px;font-weight:800;letter-spacing:-.02em;line-height:1}
+  .kpi .l{color:var(--ink-2);font-size:12.5px;margin-top:5px}
+  .kpi .d{font-size:11.5px;margin-top:7px;display:flex;align-items:center;gap:4px}
+  .kpi .kgo{font-size:11.5px;font-weight:600;color:var(--accent-ink);margin-top:8px}
+  .kpi.kpi-click{cursor:pointer;transition:.15s} .kpi.kpi-click:hover{transform:translateY(-2px);box-shadow:var(--sh-2);border-color:var(--accent-soft)}
+  .quickbar{display:flex;align-items:center;gap:9px;background:var(--accent-soft);color:var(--accent-ink);border-radius:var(--r-sm);padding:9px 13px;margin-bottom:16px;font-size:13px} .quickbar span{flex:1} .quickbar b{font-weight:800}
+
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh-1)}
+  .card-h{padding:16px 20px;border-bottom:1px solid var(--line-2);display:flex;align-items:center;gap:10px}
+  .card-h h3{font-size:14.5px;font-weight:700}
+  .card-h .mono{color:var(--ink-3);margin-left:auto}
+  .recent-row{transition:.12s} .recent-row:hover{background:var(--surface-2)}
+  .grid-2{display:grid;grid-template-columns:1.55fr 1fr;gap:18px}
+
+  .bars{padding:18px 20px 22px;display:flex;flex-direction:column;gap:12px}
+  .bar-row{display:grid;grid-template-columns:96px 1fr 34px;align-items:center;gap:12px}
+  .bar-row .nm{font-size:12.5px;color:var(--ink-2)}
+  .bar-track{height:9px;background:var(--surface-2);border-radius:999px;overflow:hidden}
+  .bar-fill{height:100%;border-radius:999px}
+  .bar-row .vn{font-size:13px;font-weight:700;text-align:right}
+
+  .tabs{display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .tab{padding:9px 15px;font-weight:600;font-size:13.5px;color:var(--ink-2);border-bottom:2px solid transparent;margin-bottom:-1px;display:flex;align-items:center;gap:7px}
+  .tab:hover{color:var(--ink)}
+  .tab.active{color:var(--accent-ink);border-bottom-color:var(--accent)}
+  .tab .count{font-size:11.5px;background:var(--surface-2);padding:0 7px;border-radius:999px;color:var(--ink-2)}
+  .tab.active .count{background:var(--accent-soft);color:var(--accent-ink)}
+
+  .filters{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+  .selwrap{position:relative}
+  select.filter{appearance:none;font-family:inherit;font-size:13px;color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r-sm);padding:8px 30px 8px 13px;cursor:pointer}
+  select.filter:hover{border-color:var(--ink-3)}
+  .selwrap::after{content:"";position:absolute;right:12px;top:50%;width:7px;height:7px;border-right:2px solid var(--ink-3);border-bottom:2px solid var(--ink-3);transform:translateY(-70%) rotate(45deg);pointer-events:none}
+
+  .ttable{width:100%;border-collapse:collapse}
+  .ttable thead th{font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--ink-3);text-align:left;padding:11px 16px;border-bottom:1px solid var(--line);font-weight:600;background:var(--surface-2)}
+  .ttable tbody tr{border-bottom:1px solid var(--line-2);transition:.12s;cursor:pointer}
+  .ttable tbody tr:last-child{border-bottom:none}
+  .ttable tbody tr:hover{background:var(--surface-2)}
+  .ttable td{padding:12px 16px;vertical-align:middle}
+  .row-me td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
+  .t-no{font-family:var(--mono);font-size:11px;color:var(--ink-3);letter-spacing:.05em}
+  .t-title{font-weight:600;color:var(--ink);font-size:13.5px}
+  .t-sub{font-size:11.5px;color:var(--ink-3);margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .who{display:flex;align-items:center;gap:8px}
+  .who .av{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:11.5px;flex:none}
+  .who .nm{font-size:12.5px;font-weight:500} .who .dp{font-size:11px;color:var(--ink-3)}
+  .av-unassigned{width:28px;height:28px;border-radius:50%;border:1.5px dashed var(--line);display:grid;place-items:center;color:var(--ink-3)}
+
+  .badge{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+  .badge .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+  .pri{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600}
+  .pri .bar{width:3px;height:13px;border-radius:2px}
+  .sla{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
+  .sla.ok{color:var(--ink-2)} .sla.warn{color:var(--s-progress)} .sla.over{color:var(--danger)} .sla.paused{color:var(--ink-3)} .sla.none{color:var(--ink-3)}
+  .ball{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;padding:2px 9px;border-radius:999px;background:var(--surface-2);color:var(--ink-2);white-space:nowrap}
+  .ball.me{background:var(--accent-soft);color:var(--accent-ink)}
+  .stall{font-size:11px;color:var(--s-need);font-weight:700;white-space:nowrap}
+
+  .empty{padding:54px 20px;text-align:center;color:var(--ink-3)}
+  .empty .ic{margin:0 auto 12px;opacity:.5}
+
+  .detail-grid{display:grid;grid-template-columns:1fr 330px;gap:20px;align-items:start}
+  .d-head{padding:22px 24px;border-bottom:1px solid var(--line-2)}
+  .d-head .top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+  .d-head h2{font-size:21px;font-weight:800;line-height:1.25}
+  .d-meta{display:flex;gap:22px;flex-wrap:wrap;margin-top:16px}
+  .d-meta .it .k{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;color:var(--ink-3);margin-bottom:4px}
+  .d-body{padding:20px 24px}
+  .d-body .sec-l{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-3);margin-bottom:9px;margin-top:18px}
+  .d-body .sec-l:first-child{margin-top:0}
+  .d-desc{color:var(--ink);line-height:1.7;font-size:14px;background:var(--surface-2);border:1px solid var(--line-2);border-radius:var(--r-sm);padding:15px 17px;white-space:pre-wrap}
+  .refban{display:flex;align-items:center;gap:9px;background:var(--accent-soft);color:var(--accent-ink);border-radius:var(--r-sm);padding:10px 13px;font-size:12.5px;font-weight:600;margin-bottom:4px}
+
+  .chips{display:flex;flex-wrap:wrap;gap:7px}
+  .chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--s-transfer-bg);color:var(--s-transfer)}
+
+  .timeline{padding:6px 24px 22px;position:relative}
+  .tl-item{display:grid;grid-template-columns:34px 1fr;gap:13px;padding-bottom:18px;position:relative}
+  .tl-item:not(:last-child)::before{content:"";position:absolute;left:16px;top:32px;bottom:0;width:2px;background:var(--line-2)}
+  .tl-dot{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;flex:none;z-index:1;background:var(--surface-2);border:1px solid var(--line)}
+  .tl-body .h{font-size:13px}.tl-body .h b{font-weight:700}
+  .tl-body .tm{font-size:11px;color:var(--ink-3);margin-top:2px;font-variant-numeric:tabular-nums}
+  .tl-comment{margin-top:7px;background:var(--surface-2);border:1px solid var(--line-2);border-radius:8px;border-top-left-radius:2px;padding:9px 13px;font-size:13px;color:var(--ink);line-height:1.6;white-space:pre-wrap}
+  .tl-comment.reason{border-left:3px solid var(--s-need)}
+  .tl-comment.opinion{border-left:3px solid var(--s-appr)}
+  .tl-atts{display:flex;flex-wrap:wrap;gap:7px;margin-top:7px}
+
+  .commentbox{padding:14px 24px;border-top:1px solid var(--line-2)}
+  .commentbox .row{display:flex;gap:10px}
+  .commentbox textarea{flex:1;border:1px solid var(--line);border-radius:var(--r-sm);padding:10px 12px;font-family:inherit;font-size:13.5px;resize:vertical;min-height:42px;outline:none;background:var(--surface-2);color:var(--ink)}
+  .commentbox textarea:focus{border-color:var(--accent)}
+  .cmt-tools{display:flex;align-items:center;gap:10px;margin-top:9px}
+  .cmt-att{font-size:12px;color:var(--ink-3)}
+
+  .side .card-h{padding:14px 18px}
+  .side-sec{padding:16px 18px;border-bottom:1px solid var(--line-2)}
+  .side-sec:last-child{border-bottom:none}
+  .side-sec .k{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;color:var(--ink-3);margin-bottom:10px}
+  .actcol{display:flex;flex-direction:column;gap:8px}
+  .actcol .btn{justify-content:flex-start;width:100%}
+  .sla-big{text-align:center;padding:4px 0}
+  .sla-big .t{font-size:24px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+  .sla-big .l{font-size:11.5px;color:var(--ink-2);margin-top:3px}
+
+  .form-card{max-width:680px}
+  .field{padding:0 24px 18px}
+  .field:first-of-type{padding-top:22px}
+  .field label{display:block;font-weight:600;font-size:13px;margin-bottom:7px}
+  .field label .req{color:var(--danger);margin-left:3px}
+  .field input,.field textarea,.field select{width:100%;font-family:inherit;font-size:14px;color:var(--ink);border:1px solid var(--line);border-radius:var(--r-sm);padding:10px 13px;outline:none;background:var(--surface-2)}
+  .field input:focus,.field textarea:focus,.field select:focus{border-color:var(--accent)}
+  .field textarea{resize:vertical;min-height:96px;line-height:1.6;white-space:pre-wrap}
+  .field .hint{font-size:11.5px;color:var(--ink-3);margin-top:5px}
+  .readonly-field{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--ink-2);background:var(--surface-2);border:1px solid var(--line-2);border-radius:var(--r-sm);padding:10px 13px}
+  .readonly-field .ro-tag{margin-left:auto;font-size:10.5px;font-weight:600;color:var(--ink-3);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:1px 8px}
+  .field-2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .field-2 .field{padding-left:0;padding-right:0}
+  .pri-pick{display:flex;gap:8px;flex-wrap:wrap}
+  .pri-opt{flex:1;min-width:80px;border:1px solid var(--line);border-radius:var(--r-sm);padding:9px;text-align:center;font-weight:600;font-size:13px;transition:.12s;background:var(--surface-2)}
+  .pri-opt:hover{border-color:var(--ink-3)}
+  .pri-opt.sel{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-ink)}
+  .dept-pick{display:flex;flex-wrap:wrap;gap:8px}
+  .dept-opt{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:var(--r-sm);padding:8px 13px;font-size:13px;font-weight:600;cursor:pointer;background:var(--surface-2);transition:.12s}
+  .dept-opt:hover{border-color:var(--ink-3)}
+  .dept-opt.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-ink)}
+  .dept-opt input{accent-color:var(--accent);width:15px;height:15px}
+  .form-foot{padding:18px 24px;border-top:1px solid var(--line-2);display:flex;gap:10px;justify-content:flex-end}
+  .route-note{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-2);background:var(--surface-2);border:1px solid var(--line-2);border-radius:var(--r-sm);padding:9px 12px;margin-top:7px}
+  .route-note b{color:var(--accent-ink)}
+  .tpls{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .tpl{border:1px solid var(--line);border-radius:var(--r-sm);padding:11px 13px;cursor:pointer;transition:.12s;background:var(--surface-2)}
+  .tpl:hover{border-color:var(--accent);background:var(--accent-soft)}
+  .tpl .nm{font-weight:700;font-size:13px;display:flex;align-items:center;gap:7px}
+  .tpl .mt{font-size:11px;color:var(--ink-3);margin-top:3px}
+
+  .dropzone{border:1.5px dashed var(--line);border-radius:var(--r-sm);padding:18px;text-align:center;cursor:pointer;transition:.15s;color:var(--ink-2);background:var(--surface-2)}
+  .dropzone:hover{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-ink)}
+  .dropzone .ic{margin:0 auto 8px} .dropzone .t{font-weight:600;font-size:13px} .dropzone .s{font-size:11.5px;color:var(--ink-3);margin-top:3px}
+  .filelist{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+  .fileitem{display:flex;align-items:center;gap:11px;padding:8px 11px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface-2)}
+  .fileitem .thumb{width:38px;height:38px;border-radius:7px;overflow:hidden;flex:none;display:grid;place-items:center;background:var(--surface);color:var(--ink-2)}
+  .fileitem .thumb img{width:100%;height:100%;object-fit:cover}
+  .fileitem .meta{flex:1;min-width:0} .fileitem .nm{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .fileitem .sz{font-size:11px;color:var(--ink-3)}
+  .fileitem .rm{color:var(--ink-3);padding:4px}.fileitem .rm:hover{color:var(--danger)}
+  .att-grid{display:flex;flex-wrap:wrap;gap:12px}
+  .att{display:flex;align-items:center;gap:10px;padding:9px 13px 9px 9px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface-2);min-width:200px}
+  .att .thumb{width:42px;height:42px;border-radius:7px;flex:none;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent-ink);overflow:hidden}
+  .att .thumb img{width:100%;height:100%;object-fit:cover}
+  .att .nm{font-size:13px;font-weight:600;line-height:1.25} .att .sz{font-size:11px;color:var(--ink-3)}
+  .att .dl{margin-left:auto;color:var(--ink-2);padding:5px}.att .dl:hover{color:var(--accent)}
+  .att.mini{min-width:0;padding:5px 10px 5px 7px;gap:7px} .att.mini .thumb{width:26px;height:26px}
+
+  .alertbar{display:flex;align-items:flex-start;gap:10px;padding:11px 14px;border-radius:var(--r-sm);font-size:13px;font-weight:600;margin-bottom:14px}
+  .alertbar .ic{margin-top:1px;flex:none}
+  .alertbar.warn{background:var(--s-need-bg);color:var(--s-need)}
+  .alertbar.over{background:var(--danger-bg);color:var(--danger)}
+  .al-body{flex:1;min-width:0}
+  .al-h{margin-bottom:6px}
+  .al-item{display:inline-flex;align-items:baseline;gap:7px;font-weight:700;text-decoration:underline;text-underline-offset:2px;margin:0 16px 4px 0;cursor:pointer}
+  .al-item span{font-weight:500;font-size:11.5px;opacity:.82;text-decoration:none;font-variant-numeric:tabular-nums}
+  .al-item:hover{opacity:.7}
+
+  .notif-panel{position:absolute;top:54px;right:18px;width:344px;max-height:64vh;overflow-y:auto;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh-2);z-index:60}
+  .notif-h{padding:13px 16px;border-bottom:1px solid var(--line-2);font-weight:700;font-size:13.5px;display:flex;align-items:center;gap:8px}
+  .notif-h .clr{margin-left:auto;font-size:12px;color:var(--accent-ink);font-weight:600;cursor:pointer}
+  .notif{display:flex;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line-2);cursor:pointer;transition:.12s}
+  .notif:last-child{border-bottom:none} .notif:hover{background:var(--surface-2)} .notif.unread{background:var(--accent-soft)}
+  .notif .dotn{width:8px;height:8px;border-radius:50%;background:var(--accent);margin-top:5px;flex:none}
+  .notif .tx{font-size:12.5px;line-height:1.45} .notif .tm{font-size:11px;color:var(--ink-3);margin-top:3px}
+
+  /* 進度條 stepper */
+  .d-step{padding:16px 24px 14px;border-bottom:1px solid var(--line-2)}
+  .stepper{display:flex;align-items:flex-start;margin-bottom:12px}
+  .step{display:flex;flex-direction:column;align-items:center;gap:6px;flex:none;width:74px}
+  .step .sc{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-size:12.5px;font-weight:700;background:var(--surface-2);color:var(--ink-3);border:1px solid var(--line)}
+  .step.done .sc{background:var(--s-resolved);color:#fff;border-color:transparent}
+  .step.cur .sc{background:var(--accent);color:#fff;border-color:transparent;box-shadow:0 0 0 4px var(--accent-soft)}
+  .step .sl{font-size:11.5px;color:var(--ink-3);font-weight:600;text-align:center;line-height:1.3}
+  .step.cur .sl{color:var(--accent-ink)} .step.done .sl{color:var(--ink-2)}
+  .sline{flex:1;height:2px;background:var(--line);margin:14px 2px 0}
+  .sline.done{background:var(--s-resolved)}
+  .step-now{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--ink-2);background:var(--surface-2);border:1px solid var(--line-2);border-radius:var(--r-sm);padding:9px 13px}
+  .step-now b{color:var(--ink)}
+  .step-act{width:100%;justify-content:center;margin-top:10px;padding:11px}
+  /* 受案進度 多部門軌 */
+  .tracks{display:flex;flex-direction:column;gap:10px}
+  .track-card{border:1px solid var(--line);border-radius:var(--r-sm);padding:12px 14px;background:var(--surface-2)}
+  .track-card.mine{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
+  .track-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .track-dept{font-weight:700;font-size:13.5px;display:flex;align-items:center;gap:6px}
+  .track-who{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink-2)}
+  .track-who .av{width:22px;height:22px;font-size:10px;border-radius:50%;display:grid;place-items:center;font-weight:700;flex:none}
+  .track-sla{margin-left:auto;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:4px;font-variant-numeric:tabular-nums}
+  .track-sla.over{color:var(--danger)} .track-sla.warn{color:var(--s-progress)} .track-sla.ok{color:var(--ink-2)} .track-sla.paused,.track-sla.none{color:var(--ink-3)}
+  .track-acts{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+
+  /* in-page modal */
+  .modal-ov{position:fixed;inset:0;background:rgba(22,34,58,.5);z-index:200;display:grid;place-items:center;padding:20px;animation:mfade .15s ease}
+  .modal-card{width:100%;max-width:420px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--sh-2);padding:22px 22px 18px;animation:mpop .18s ease}
+  .modal-title{font-size:16px;font-weight:800;margin-bottom:6px}
+  .modal-msg{font-size:13.5px;color:var(--ink-2);line-height:1.6;margin-bottom:14px}
+  .modal-label{display:block;font-size:12.5px;font-weight:600;color:var(--ink-2);margin:8px 0 7px}
+  .modal-input{width:100%;font-family:inherit;font-size:14px;color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r-sm);padding:10px 12px;outline:none;margin-bottom:4px}
+  .modal-input:focus{border-color:var(--accent)}
+  textarea.modal-input{resize:vertical;min-height:74px;line-height:1.6}
+  .modal-foot{display:flex;gap:10px;justify-content:flex-end;margin-top:16px}
+  .modal-info{max-height:52vh;overflow-y:auto;margin-top:4px}
+  .diff-block{margin-bottom:16px} .diff-block:last-child{margin-bottom:0}
+  .diff-l{font-size:12px;font-weight:700;color:var(--ink-2);margin-bottom:7px}
+  .diff-row{display:flex;gap:9px;margin-bottom:7px;align-items:flex-start}
+  .diff-tag{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:5px;flex:none;margin-top:2px}
+  .diff-tag.old{background:var(--danger-bg);color:var(--danger)}
+  .diff-tag.new{background:var(--s-resolved-bg);color:var(--s-resolved)}
+  .diff-txt{font-size:13px;line-height:1.65;white-space:pre-wrap;flex:1;background:var(--surface-2);border:1px solid var(--line-2);border-radius:6px;padding:8px 11px}
+  .linklike{color:var(--accent-ink);font-weight:600;font-size:12.5px;display:inline-flex;align-items:center;gap:4px;text-decoration:underline;text-underline-offset:2px}
+  .linklike:hover{color:var(--accent)}
+  @keyframes mfade{from{opacity:0}to{opacity:1}}
+  @keyframes mpop{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
+
+  .toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(20px);background:#16223A;color:#fff;padding:11px 20px;border-radius:999px;font-size:13.5px;font-weight:600;box-shadow:var(--sh-2);opacity:0;transition:.3s;z-index:210;display:flex;align-items:center;gap:9px;pointer-events:none}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .demo-flag{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--s-progress);background:var(--s-progress-bg);padding:2px 9px;border-radius:999px;font-weight:600}
+
+  .login{min-height:100vh;display:grid;place-items:center;padding:24px;background:radial-gradient(1200px 600px at 70% -10%,var(--accent-soft),transparent),var(--bg)}
+  .login-card{width:100%;max-width:410px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--sh-2);padding:34px 32px;text-align:center}
+  .login-card .logo{width:54px;height:54px;border-radius:14px;background:var(--accent);color:#fff;display:grid;place-items:center;margin:0 auto 18px;box-shadow:var(--glow)}
+  .login-card h1{font-size:23px;font-weight:800}
+  .login-card .en{font-family:var(--mono);font-size:10px;letter-spacing:.22em;color:var(--ink-3);margin-top:5px}
+  .login-card p.sub{color:var(--ink-2);font-size:13px;margin:14px 0 22px}
+  .login-field{text-align:left;margin-bottom:14px}
+  .login-field label{font-size:12px;font-weight:600;color:var(--ink-2);display:block;margin-bottom:6px}
+  .login-field input,.login-field select{width:100%;font-family:inherit;font-size:14px;padding:11px 13px;border:1px solid var(--line);border-radius:var(--r-sm);outline:none;background:var(--surface-2);color:var(--ink)}
+  .login .btn-primary{width:100%;justify-content:center;padding:12px;margin-top:6px}
+  .login-note{margin-top:18px;font-size:11.5px;color:var(--ink-3);line-height:1.6}
+
+  @media(max-width:920px){
+    .layout{grid-template-columns:1fr}
+    .sidebar{position:fixed;left:-260px;width:248px;z-index:50;transition:.25s}
+    .sidebar.open{left:0;box-shadow:var(--sh-2)}
+    .kpis{grid-template-columns:repeat(2,1fr)}
+    .grid-2,.detail-grid,.tpls{grid-template-columns:1fr}
+    .menu-toggle{display:grid!important}
+    .search{width:auto;flex:1;max-width:180px}
+  }
+  .menu-toggle{display:none;width:38px;height:38px;border-radius:10px;place-items:center;color:var(--ink-2)}
+  .scrim{display:none;position:fixed;inset:0;background:rgba(22,34,58,.42);z-index:40}
+  .scrim.show{display:block}
+</style>
+<script src="../08_共用/store.js"></script>
+<script src="../08_共用/theme.js"></script>
+</head>
+<body>
+<div id="app"></div>
+<div class="toast" id="toast"></div>
+<div id="modal"></div>
+
+<script>
+/* ====================== Icons (RemixIcon) ====================== */
+const P = {
+  dashboard:"M12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2ZM12 4C7.58172 4 4 7.58172 4 12C4 16.4183 7.58172 20 12 20C16.4183 20 20 16.4183 20 12C20 7.58172 16.4183 4 12 4ZM15.8329 7.33748C16.0697 7.17128 16.3916 7.19926 16.5962 7.40381C16.8002 7.60784 16.8267 7.92955 16.6587 8.16418C14.479 11.2095 13.2796 12.8417 13.0607 13.0607C12.4749 13.6464 11.5251 13.6464 10.9393 13.0607C10.3536 12.4749 10.3536 11.5251 10.9393 10.9393C11.3126 10.5661 12.9438 9.36549 15.8329 7.33748ZM17.5 11C18.0523 11 18.5 11.4477 18.5 12C18.5 12.5523 18.0523 13 17.5 13C16.9477 13 16.5 12.5523 16.5 12C16.5 11.4477 16.9477 11 17.5 11ZM6.5 11C7.05228 11 7.5 11.4477 7.5 12C7.5 12.5523 7.05228 13 6.5 13C5.94772 13 5.5 12.5523 5.5 12C5.5 11.4477 5.94772 11 6.5 11ZM8.81802 7.40381C9.20854 7.79433 9.20854 8.4275 8.81802 8.81802C8.4275 9.20854 7.79433 9.20854 7.40381 8.81802C7.01328 8.4275 7.01328 7.79433 7.40381 7.40381C7.79433 7.01328 8.4275 7.01328 8.81802 7.40381ZM12 5.5C12.5523 5.5 13 5.94772 13 6.5C13 7.05228 12.5523 7.5 12 7.5C11.4477 7.5 11 7.05228 11 6.5C11 5.94772 11.4477 5.5 12 5.5Z",
+  ticket:"M21.0049 2.99979C21.5572 2.99979 22.0049 3.4475 22.0049 3.99979V9.49979C20.6242 9.49979 19.5049 10.6191 19.5049 11.9998C19.5049 13.3805 20.6242 14.4998 22.0049 14.4998V19.9998C22.0049 20.5521 21.5572 20.9998 21.0049 20.9998H3.00488C2.4526 20.9998 2.00488 20.5521 2.00488 19.9998V14.4998C3.38559 14.4998 4.50488 13.3805 4.50488 11.9998C4.50488 10.6191 3.38559 9.49979 2.00488 9.49979V3.99979C2.00488 3.4475 2.4526 2.99979 3.00488 2.99979H21.0049ZM20.0049 4.99979H4.00488V7.96779L4.16077 8.04886C5.49935 8.78084 6.42516 10.1733 6.49998 11.788L6.50488 11.9998C6.50488 13.704 5.55755 15.1869 4.16077 15.9507L4.00488 16.0308V18.9998H20.0049V16.0308L19.849 15.9507C18.5104 15.2187 17.5846 13.8263 17.5098 12.2116L17.5049 11.9998C17.5049 10.2956 18.4522 8.81266 19.849 8.04886L20.0049 7.96779V4.99979ZM16.0049 8.99979V14.9998H8.00488V8.99979H16.0049Z",
+  add:"M11 11V5H13V11H19V13H13V19H11V13H5V11H11Z",
+  search:"M18.031 16.6168L22.3137 20.8995L20.8995 22.3137L16.6168 18.031C15.0769 19.263 13.124 20 11 20C6.032 20 2 15.968 2 11C2 6.032 6.032 2 11 2C15.968 2 20 6.032 20 11C20 13.124 19.263 15.0769 18.031 16.6168ZM16.0247 15.8748C17.2475 14.6146 18 12.8956 18 11C18 7.1325 14.8675 4 11 4C7.1325 4 4 7.1325 4 11C4 14.8675 7.1325 18 11 18C12.8956 18 14.6146 17.2475 15.8748 16.0247L16.0247 15.8748Z",
+  filter:"M10 18H14V16H10V18ZM3 6V8H21V6H3ZM6 13H18V11H6V13Z",
+  user:"M20 22H18V20C18 18.3431 16.6569 17 15 17H9C7.34315 17 6 18.3431 6 20V22H4V20C4 17.2386 6.23858 15 9 15H15C17.7614 15 20 17.2386 20 20V22ZM12 13C8.68629 13 6 10.3137 6 7C6 3.68629 8.68629 1 12 1C15.3137 1 18 3.68629 18 7C18 10.3137 15.3137 13 12 13ZM12 11C14.2091 11 16 9.20914 16 7C16 4.79086 14.2091 3 12 3C9.79086 3 8 4.79086 8 7C8 9.20914 9.79086 11 12 11Z",
+  building:"M21 19H23V21H1V19H3V4C3 3.44772 3.44772 3 4 3H14C14.5523 3 15 3.44772 15 4V19H19V11H17V9H20C20.5523 9 21 9.44772 21 10V19ZM5 5V19H13V5H5ZM7 11H11V13H7V11ZM7 7H11V9H7V7Z",
+  time:"M12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22ZM12 20C16.4183 20 20 16.4183 20 12C20 7.58172 16.4183 4 12 4C7.58172 4 4 7.58172 4 12C4 16.4183 7.58172 20 12 20ZM13 12H17V14H11V7H13V12Z",
+  alarm:"M4.00001 20V14C4.00001 9.58172 7.58173 6 12 6C16.4183 6 20 9.58172 20 14V20H21V22H3.00001V20H4.00001ZM6.00001 20H18V14C18 10.6863 15.3137 8 12 8C8.6863 8 6.00001 10.6863 6.00001 14V20ZM11 2H13V5H11V2ZM19.7782 4.80761L21.1924 6.22183L19.0711 8.34315L17.6569 6.92893L19.7782 4.80761ZM2.80762 6.22183L4.22183 4.80761L6.34315 6.92893L4.92894 8.34315L2.80762 6.22183ZM7.00001 14C7.00001 11.2386 9.23858 9 12 9V11C10.3432 11 9.00001 12.3431 9.00001 14H7.00001Z",
+  arrowL:"M7.82843 10.9999H20V12.9999H7.82843L13.1924 18.3638L11.7782 19.778L4 11.9999L11.7782 4.22168L13.1924 5.63589L7.82843 10.9999Z",
+  exchange:"M12.0049 22.0027C6.48204 22.0027 2.00488 17.5256 2.00488 12.0027C2.00488 6.4799 6.48204 2.00275 12.0049 2.00275C17.5277 2.00275 22.0049 6.4799 22.0049 12.0027C22.0049 17.5256 17.5277 22.0027 12.0049 22.0027ZM12.0049 20.0027C16.4232 20.0027 20.0049 16.421 20.0049 12.0027C20.0049 7.58447 16.4232 4.00275 12.0049 4.00275C7.5866 4.00275 4.00488 7.58447 4.00488 12.0027C4.00488 16.421 7.5866 20.0027 12.0049 20.0027ZM7.00488 13.0027H16.0049V15.0027H12.0049V18.0027L7.00488 13.0027ZM12.0049 9.00275V6.00275L17.0049 11.0027H8.00488V9.00275H12.0049Z",
+  forward:"M13 14H11C7.54202 14 4.53953 15.9502 3.03239 18.8107C3.01093 18.5433 3 18.2729 3 18C3 12.4772 7.47715 8 13 8V2.5L23.5 11L13 19.5V14ZM11 12H15V15.3078L20.3214 11L15 6.69224V10H13C10.5795 10 8.41011 11.0749 6.94312 12.7735C8.20873 12.2714 9.58041 12 11 12Z",
+  logout:"M5 22C4.44772 22 4 21.5523 4 21V3C4 2.44772 4.44772 2 5 2H19C19.5523 2 20 2.44772 20 3V6H18V4H6V20H18V18H20V21C20 21.5523 19.5523 22 19 22H5ZM18 16V13H11V11H18V8L23 12L18 16Z",
+  bell:"M20 17H22V19H2V17H4V10C4 5.58172 7.58172 2 12 2C16.4183 2 20 5.58172 20 10V17ZM18 17V10C18 6.68629 15.3137 4 12 4C8.68629 4 6 6.68629 6 10V17H18ZM9 21H15V23H9V21Z",
+  inbox:"M21 3C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3H21ZM7.41604 14H4V19H20V14H16.584C15.8124 15.7659 14.0503 17 12 17C9.94968 17 8.1876 15.7659 7.41604 14ZM20 5H4V12H9C9 13.6569 10.3431 15 12 15C13.6569 15 15 13.6569 15 12H20V5Z",
+  send:"M21.7267 2.95694L16.2734 22.0432C16.1225 22.5716 15.7979 22.5956 15.5563 22.1126L11 13L1.9229 9.36919C1.41322 9.16532 1.41953 8.86022 1.95695 8.68108L21.0432 2.31901C21.5716 2.14285 21.8747 2.43866 21.7267 2.95694ZM19.0353 5.09647L6.81221 9.17085L12.4488 11.4255L15.4895 17.5068L19.0353 5.09647Z",
+  flag:"M12.382 3C12.7607 3 13.107 3.214 13.2764 3.55279L14 5H20C20.5523 5 21 5.44772 21 6V17C21 17.5523 20.5523 18 20 18H13.618C13.2393 18 12.893 17.786 12.7236 17.4472L12 16H5V22H3V3H12.382ZM11.7639 5H5V14H13.2361L14.2361 16H19V7H12.7639L11.7639 5Z",
+  close:"M11.9997 10.5865L16.9495 5.63672L18.3637 7.05093L13.4139 12.0007L18.3637 16.9504L16.9495 18.3646L11.9997 13.4149L7.04996 18.3646L5.63574 16.9504L10.5855 12.0007L5.63574 7.05093L7.04996 5.63672L11.9997 10.5865Z",
+  checkLn:"M9.9997 15.1709L19.1921 5.97852L20.6063 7.39273L9.9997 17.9993L3.63574 11.6354L5.04996 10.2212L9.9997 15.1709Z",
+  edit:"M6.41421 15.89L16.5563 5.74785L15.1421 4.33363L5 14.4758V15.89H6.41421ZM7.24264 17.89H3V13.6473L14.435 2.21231C14.8256 1.82179 15.4587 1.82179 15.8492 2.21231L18.6777 5.04074C19.0682 5.43126 19.0682 6.06443 18.6777 6.45495L7.24264 17.89ZM3 19.89H21V21.89H3V19.89Z",
+  barchart:"M3 3H21C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3ZM4 5V19H20V5H4ZM7 13H9V17H7V13ZM11 7H13V17H11V7ZM15 10H17V17H15V10Z",
+  receive:"M14 14.252V16.3414C13.3744 16.1203 12.7013 16 12 16C8.68629 16 6 18.6863 6 22H4C4 17.5817 7.58172 14 12 14C12.6906 14 13.3608 14.0875 14 14.252ZM12 13C8.685 13 6 10.315 6 7C6 3.685 8.685 1 12 1C15.315 1 18 3.685 18 7C18 10.315 15.315 13 12 13ZM12 11C14.21 11 16 9.21 16 7C16 4.79 14.21 3 12 3C9.79 3 8 4.79 8 7C8 9.21 9.79 11 12 11ZM20 17H23V19H20V22.5L15 18L20 13.5V17Z",
+  menu:"M3 4H21V6H3V4ZM3 11H21V13H3V11ZM3 18H21V20H3V18Z",
+  home:"M19 21H5C4.44772 21 4 20.5523 4 20V11L1 11L11.3273 1.6115C11.7087 1.26475 12.2913 1.26475 12.6727 1.6115L23 11L20 11V20C20 20.5523 19.5523 21 19 21ZM13 19H18V9.15745L12 3.7029L6 9.15745V19H11V13H13V19Z",
+  attach:"M14.8287 7.75737L9.1718 13.4142C8.78127 13.8047 8.78127 14.4379 9.1718 14.8284C9.56232 15.219 10.1955 15.219 10.586 14.8284L16.2429 9.17158C17.4144 8.00001 17.4144 6.10052 16.2429 4.92894C15.0713 3.75737 13.1718 3.75737 12.0002 4.92894L6.34337 10.5858C4.39075 12.5384 4.39075 15.7042 6.34337 17.6569C8.29599 19.6095 11.4618 19.6095 13.4144 17.6569L19.0713 12L20.4855 13.4142L14.8287 19.0711C12.095 21.8047 7.66283 21.8047 4.92916 19.0711C2.19549 16.3374 2.19549 11.9053 4.92916 9.17158L10.586 3.51473C12.5386 1.56211 15.7045 1.56211 17.6571 3.51473C19.6097 5.46735 19.6097 8.63317 17.6571 10.5858L12.0002 16.2427C10.8287 17.4142 8.92916 17.4142 7.75759 16.2427C6.58601 15.0711 6.58601 13.1716 7.75759 12L13.4144 6.34316L14.8287 7.75737Z",
+  image:"M5 11.1005L7 9.1005L12.5 14.6005L16 11.1005L19 14.1005V5H5V11.1005ZM5 13.9289V19H8.1005L11.0858 16.0147L7 11.9289L5 13.9289ZM10.9289 19H19V16.9289L16 13.9289L10.9289 19ZM4 3H20C20.5523 3 21 3.44772 21 4V20C21 20.5523 20.5523 21 20 21H4C3.44772 21 3 20.5523 3 20V4C3 3.44772 3.44772 3 4 3ZM15.5 10C14.6716 10 14 9.32843 14 8.5C14 7.67157 14.6716 7 15.5 7C16.3284 7 17 7.67157 17 8.5C17 9.32843 16.3284 10 15.5 10Z",
+  file:"M21 8V20.9932C21 21.5501 20.5552 22 20.0066 22H3.9934C3.44495 22 3 21.556 3 21.0082V2.9918C3 2.45531 3.4487 2 4.00221 2H14.9968L21 8ZM19 9H14V4H5V20H19V9ZM8 11H16V13H8V11ZM8 15H16V17H8V15Z",
+  download:"M13 10H18L12 16L6 10H11V3H13V10ZM4 19H20V12H22V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V12H4V19Z",
+  upload:"M12 12.5858L16.2426 16.8284L14.8284 18.2426L13 16.415V22H11V16.413L9.17157 18.2426L7.75736 16.8284L12 12.5858ZM12 2C15.5934 2 18.5544 4.70761 18.9541 8.19395C21.2858 8.83154 23 10.9656 23 13.5C23 16.3688 20.8036 18.7246 18.0006 18.9776L18.0009 16.9644C19.6966 16.7214 21 15.2629 21 13.5C21 11.567 19.433 10 17.5 10C17.2912 10 17.0867 10.0183 16.8887 10.054C16.9616 9.7142 17 9.36158 17 9C17 6.23858 14.7614 4 12 4C9.23858 4 7 6.23858 7 9C7 9.36158 7.03838 9.7142 7.11205 10.0533C6.91331 10.0183 6.70879 10 6.5 10C4.567 10 3 11.567 3 13.5C3 15.2003 4.21241 16.6174 5.81986 16.934L6.00005 16.9646L6.00039 18.9776C3.19696 18.7252 1 16.3692 1 13.5C1 10.9656 2.71424 8.83154 5.04648 8.19411C5.44561 4.70761 8.40661 2 12 2Z",
+  xCircle:"M12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22ZM12 20C16.4183 20 20 16.4183 20 12C20 7.58172 16.4183 4 12 4C7.58172 4 4 7.58172 4 12C4 16.4183 7.58172 20 12 20ZM12 10.5858L14.8284 7.75736L16.2426 9.17157L13.4142 12L16.2426 14.8284L14.8284 16.2426L12 13.4142L9.17157 16.2426L7.75736 14.8284L10.5858 12L7.75736 9.17157L9.17157 7.75736L12 10.5858Z",
+  back:"M5.82843 6.99955L8.36396 9.53509L6.94975 10.9493L2 5.99955L6.94975 1.0498L8.36396 2.46402L5.82843 4.99955H13C17.4183 4.99955 21 8.58127 21 12.9996C21 17.4178 17.4183 20.9996 13 20.9996H4V18.9996H13C16.3137 18.9996 19 16.3133 19 12.9996C19 9.68584 16.3137 6.99955 13 6.99955H5.82843Z",
+  copy:"M6.9998 6V3C6.9998 2.44772 7.44752 2 7.9998 2H19.9998C20.5521 2 20.9998 2.44772 20.9998 3V17C20.9998 17.5523 20.5521 18 19.9998 18H16.9998V20.9991C16.9998 21.5519 16.5499 22 15.993 22H4.00666C3.45059 22 3 21.5554 3 20.9991L3.0026 7.00087C3.0027 6.44811 3.45264 6 4.00942 6H6.9998ZM5.00242 8L5.00019 20H14.9998V8H5.00242ZM8.9998 6H16.9998V16H18.9998V4H8.9998V6ZM7 11H13V13H7V11ZM7 15H13V17H7V15Z",
+  team:"M12 11C14.7614 11 17 13.2386 17 16V22H15V16C15 14.4023 13.7511 13.0963 12.1763 13.0051L12 13C10.4023 13 9.09634 14.2489 9.00509 15.8237L9 16V22H7V16C7 13.2386 9.23858 11 12 11ZM5.5 14C5.77885 14 6.05009 14.0326 6.3101 14.0942C6.14202 14.594 6.03873 15.122 6.00896 15.6693L6 16L6.0007 16.0856C5.88757 16.0456 5.76821 16.0187 5.64446 16.0069L5.5 16C4.7203 16 4.07955 16.5949 4.00687 17.3555L4 17.5V22H2V17.5C2 15.567 3.567 14 5.5 14ZM18.5 14C20.433 14 22 15.567 22 17.5V22H20V17.5C20 16.7203 19.4051 16.0796 18.6445 16.0069L18.5 16C18.3248 16 18.1566 16.03 18.0003 16.0852L18 16C18 15.3343 17.8916 14.694 17.6915 14.0956C17.9499 14.0326 18.2211 14 18.5 14ZM5.5 8C6.88071 8 8 9.11929 8 10.5C8 11.8807 6.88071 13 5.5 13C4.11929 13 3 11.8807 3 10.5C3 9.11929 4.11929 8 5.5 8ZM18.5 8C19.8807 8 21 9.11929 21 10.5C21 11.8807 19.8807 13 18.5 13C17.1193 13 16 11.8807 16 10.5C16 9.11929 17.1193 8 18.5 8ZM5.5 10C5.22386 10 5 10.2239 5 10.5C5 10.7761 5.22386 11 5.5 11C5.77614 11 6 10.7761 6 10.5C6 10.2239 5.77614 10 5.5 10ZM18.5 10C18.2239 10 18 10.2239 18 10.5C18 10.7761 18.2239 11 18.5 11C18.7761 11 19 10.7761 19 10.5C19 10.2239 18.7761 10 18.5 10ZM12 2C14.2091 2 16 3.79086 16 6C16 8.20914 14.2091 10 12 10C9.79086 10 8 8.20914 8 6C8 3.79086 9.79086 2 12 2ZM12 4C10.8954 4 10 4.89543 10 6C10 7.10457 10.8954 8 12 8C13.1046 8 14 7.10457 14 6C14 4.89543 13.1046 4 12 4Z",
+  shield:"M12 1L20.2169 2.82598C20.6745 2.92766 21 3.33347 21 3.80217V13.7889C21 15.795 19.9974 17.6684 18.3282 18.7812L12 23L5.6718 18.7812C4.00261 17.6684 3 15.795 3 13.7889V3.80217C3 3.33347 3.32553 2.92766 3.78307 2.82598L12 1ZM12 3.04879L5 4.60434V13.7889C5 15.1263 5.6684 16.3752 6.7812 17.1171L12 20.5963L17.2188 17.1171C18.3316 16.3752 19 15.1263 19 13.7889V4.60434L12 3.04879ZM16.4524 8.22183L17.8666 9.63604L11.5026 16L7.25999 11.7574L8.67421 10.3431L11.5019 13.1709L16.4524 8.22183Z",
+  draft:"M20 2C20.5523 2 21 2.44772 21 3V6.757L19 8.757V4H5V20H19V17.242L21 15.242V21C21 21.5523 20.5523 22 20 22H4C3.44772 22 3 21.5523 3 21V3C3 2.44772 3.44772 2 4 2H20ZM21.7782 8.80761L23.1924 10.2218L15.4142 18L13.9979 17.9979L14 16.5858L21.7782 8.80761ZM13 12V14H8V12H13ZM16 8V10H8V8H16Z",
+  warn:"M12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22ZM12 20C16.4183 20 20 16.4183 20 12C20 7.58172 16.4183 4 12 4C7.58172 4 4 7.58172 4 12C4 16.4183 7.58172 20 12 20ZM11 15H13V17H11V15ZM11 7H13V13H11V7Z",
+  hourglass:"M4 2H20V6.45994L13.5366 12L20 17.5401V22H4V17.5401L10.4634 12L4 6.45994V2ZM12 10.6829L18 5.54007V4H6V5.54007L12 10.6829ZM12 13.3171L6 18.4599V20H18V18.4599L12 13.3171Z",
+  reply:"M11 20L1 12L11 4V9C16.5228 9 21 13.4772 21 19C21 19.2727 20.9891 19.5428 20.9677 19.81C19.5055 17.0364 16.6381 15.119 13.313 15.0053L13 15H10.9999L11 20ZM8.99986 13H10.9999L13.0341 13.0003L13.3814 13.0065C14.6657 13.0504 15.9053 13.3165 17.0568 13.7734C15.5898 12.0749 13.4204 11 11 11H9V8.16125L4.20156 12L8.99992 15.8387L8.99986 13Z"
+};
+function ic(n,s=18){return `<svg class="ic" width="${s}" height="${s}" viewBox="0 0 24 24" fill="currentColor"><path d="${P[n]||P.ticket}"/></svg>`}
+
+/* ====================== Reference data ====================== */
+const DEPTS = ["資訊部","人資部","行政部","財務部","業務部"];
+const CATS = {
+  IT:  {l:"IT 報修",     dept:"資訊部", approve:false},
+  ACC: {l:"系統權限申請", dept:"資訊部", approve:true},
+  HR:  {l:"人資行政",    dept:"人資部", approve:false},
+  PUR: {l:"採購申請",    dept:"行政部", approve:false},
+  GA:  {l:"總務庶務",    dept:"行政部", approve:false}
+};
+const PRIOS = {urgent:{l:"緊急",c:"var(--danger)",h:4},high:{l:"高",c:"var(--s-progress)",h:24},mid:{l:"中",c:"var(--accent)",h:72},low:{l:"低",c:"var(--ink-3)",h:168}};
+const STATUS = {
+  open:{l:"待受理",c:"var(--s-open)",bg:"var(--s-open-bg)"},
+  in_progress:{l:"處理中",c:"var(--s-progress)",bg:"var(--s-progress-bg)"},
+  pending_approval:{l:"待主管簽核",c:"var(--s-appr)",bg:"var(--s-appr-bg)"},
+  need_info:{l:"待提單人補件",c:"var(--s-need)",bg:"var(--s-need-bg)"},
+  resolved:{l:"待提單人確認",c:"var(--s-resolved)",bg:"var(--s-resolved-bg)"},
+  transferred:{l:"轉單中",c:"var(--s-transfer)",bg:"var(--s-transfer-bg)"},
+  closed:{l:"已結案",c:"var(--s-closed)",bg:"var(--s-closed-bg)"}
+};
+const RESO = {completed:{l:"完成"},requester_closed:{l:"提單人結案"},withdrawn:{l:"撤回"}};
+const PAUSE = ["pending_approval","need_info","resolved"];
+const EVENT = {
+  created:"add", comment:"send", assigned:"receive", transferred:"forward",
+  approval_requested:"shield", approved:"shield", approval_rejected:"back",
+  dept_approval_requested:"shield", dept_approved:"shield", dept_approval_rejected:"back",
+  returned:"reply", resubmitted:"reply", completed:"checkLn", track_done:"checkLn", reopened:"reply",
+  closed:"checkLn", withdrawn:"back", collab_added:"team", priority_changed:"flag", edited:"edit"
+};
+const TEMPLATES = [
+  {id:"t1",name:"新人 IT 設備與帳號開通",cat:"IT",prio:"mid",title:"新進員工 IT 設備與帳號開通",desc:"報到日：\n姓名 / 部門：\n需求：筆電、AD 帳號、Email、VPN 權限"},
+  {id:"t2",name:"系統權限申請（需簽核）",cat:"ACC",prio:"mid",title:"系統權限申請",desc:"申請系統：\n權限範圍：\n用途說明："},
+  {id:"t3",name:"辦公用品採購",cat:"PUR",prio:"low",title:"辦公用品採購申請",desc:"品項與數量：\n預估預算：\n需求日期：\n（報價請附件）"},
+  {id:"t4",name:"設備報修",cat:"IT",prio:"high",title:"設備報修",desc:"設備 / 位置：\n故障狀況：\n已嘗試處理：\n影響範圍："}
+];
+
+const USERS = {
+  u1:{id:"u1",name:"王小明",dept:"業務部",role:"requester"},
+  u2:{id:"u2",name:"陳大華",dept:"資訊部",role:"handler"},
+  u3:{id:"u3",name:"林淑芬",dept:"總經理室",role:"handler",label:"最終權限帳號"},
+  u4:{id:"u4",name:"系統管理員",dept:"資訊部",role:"admin"},
+  u5:{id:"u5",name:"張偉",dept:"行政部",role:"requester"},
+  u6:{id:"u6",name:"李美玲",dept:"財務部",role:"requester"},
+  u7:{id:"u7",name:"黃建宏",dept:"資訊部",role:"handler"},
+  u8:{id:"u8",name:"吳佩珊",dept:"人資部",role:"handler"},
+  m_bz:{id:"m_bz",name:"周文彬",dept:"業務部",role:"manager"},
+  m_ga:{id:"m_ga",name:"鄭雅文",dept:"行政部",role:"manager"},
+  m_fi:{id:"m_fi",name:"蔡英傑",dept:"財務部",role:"manager"},
+  m_hr:{id:"m_hr",name:"何志明",dept:"人資部",role:"manager"},
+  h_ga:{id:"h_ga",name:"劉冠廷",dept:"行政部",role:"handler"}
+};
+const ROLE_LABEL = {requester:"申請人",handler:"處理人",manager:"部門主管",admin:"系統管理員"};
+const DEMO_ROLES = ["u1","m_bz","u2","u3","u4"];
+function userRoleLabel(u){return u.label||ROLE_LABEL[u.role]}
+
+/* ====================== Time helpers ====================== */
+const H=3600e3, DAY=86400e3;
+const now=()=>Date.now();
+const ago=h=>now()-h*H;
+function fmt(ts){const d=new Date(ts);const p=n=>String(n).padStart(2,"0");return `${d.getMonth()+1}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`}
+function rel(ts){const m=Math.round((now()-ts)/6e4);if(m<1)return "剛剛";if(m<60)return m+" 分鐘前";const h=Math.floor(m/60);if(h<24)return h+" 小時前";return Math.floor(h/24)+" 天前"}
+function slaTxt(ms,over){const a=Math.abs(ms),h=Math.floor(a/H),m=Math.floor((a%H)/6e4);const t=h>=24?Math.floor(h/24)+" 天 "+(h%24)+" 時":h+" 時 "+m+" 分";return (over?"逾期 ":"剩 ")+t}
+/* ---- SLA（每受案部門一軌，各自算；暫停為顯示凍結，demo 簡化不回補秒數）---- */
+function trackPaused(t,k){return k.st==="need_info"||(t.sharedAppr&&t.sharedAppr.st==="pending")||(k.appr&&k.appr.st==="pending")}
+function slaOf(t,k){
+  if(k.st==="done")return {kind:"none",txt:"已完成"};
+  if(t.status==="closed")return {kind:"none",txt:"—"};
+  if(trackPaused(t,k))return {kind:"paused",txt:"計時暫停"};
+  const ms=k.sla-now(),over=ms<0;
+  return {kind:over?"over":(ms<6*H?"warn":"ok"),over,txt:slaTxt(ms,over)};
+}
+function ticketSla(t){
+  if(t.status==="closed")return {kind:"none",txt:"—"};
+  const act=t.tracks.filter(k=>k.st!=="done");
+  if(!act.length)return {kind:"none",txt:"—"};
+  const order={over:0,warn:1,ok:2,paused:3,none:4};
+  return act.map(k=>slaOf(t,k)).sort((a,b)=>order[a.kind]-order[b.kind])[0];
+}
+function slaInfo(t){return ticketSla(t)}
+function stalledDays(t){if(t.status==="closed")return 0;return Math.floor((now()-t.updated)/DAY)}
+
+/* ---- rollup：由各軌彙整整體狀態 ---- */
+function rollup(t){
+  if(t.resolution){t.status="closed";return}
+  if(t.sharedAppr&&t.sharedAppr.st==="pending"){t.status="pending_approval";return}
+  const sts=t.tracks.map(k=>k.st);
+  if(sts.length&&sts.every(s=>s==="done")){t.status="resolved";return}
+  if(sts.some(s=>s==="need_info")){t.status="need_info";return}
+  if(sts.length&&sts.every(s=>s==="assigned")){t.status="open";return}
+  t.status="in_progress";
+}
+
+/* ---- ball：球在誰手上（多軌）---- */
+function trackBallOnMe(t,k,u){u=u||state.user;if(!u)return false;
+  if(k.st==="done"||k.st==="need_info")return false;
+  if(t.sharedAppr&&t.sharedAppr.st==="pending")return false;
+  if(k.appr&&k.appr.st==="pending")return (u.role==="manager"&&u.dept===k.dept)||u.role==="admin";
+  if(k.asgId)return k.asgId===u.id||u.role==="admin";
+  return (u.role==="handler"||u.role==="manager")&&u.dept===k.dept;
+}
+function ballOnMe(t,u){u=u||state.user;if(!u||t.status==="closed")return false;
+  if(t.reqId===u.id&&(t.status==="resolved"||t.status==="need_info"))return true;
+  if(t.sharedAppr&&t.sharedAppr.st==="pending"&&((u.role==="manager"&&t.reqDept===u.dept)||u.role==="admin"))return true;
+  return t.tracks.some(k=>trackBallOnMe(t,k,u));
+}
+function ballText(t){
+  if(t.status==="closed")return "";
+  if(t.status==="pending_approval")return t.reqDept+"主管簽核";
+  if(t.status==="resolved")return USERS[t.reqId].name+" 確認";
+  if(t.status==="need_info")return USERS[t.reqId].name+" 補件";
+  const act=t.tracks.filter(k=>k.st!=="done");
+  return act.map(k=>{
+    if(k.appr&&k.appr.st==="pending")return k.dept+"·待主管簽核";
+    return k.dept+(k.asgId?("·"+USERS[k.asgId].name):"·待認領");
+  }).join("、")||"—";
+}
+
+/* ====================== Mock tickets ====================== */
+let SEQ=60;
+function tno(offD){const d=new Date(now()-offD*DAY);const p=n=>String(n).padStart(2,"0");return `TK-${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${String(SEQ--).padStart(3,"0")}`}
+function due(prio,base){return base+PRIOS[prio].h*H}
+
+let TICKETS=[
+  {id:"k1",no:tno(0.2),title:"會議室投影機無法連接筆電",cat:"IT",prio:"high",status:"in_progress",resolution:null,
+   reqId:"u1",reqDept:"業務部",asgId:"u2",asgDept:"資訊部",collab:[],refNo:null,pausedAt:null,
+   desc:"3F 大會議室投影機 HDMI 接上筆電後沒有訊號，換線、重開機都試過，明早 9 點有客戶簡報急用。",
+   attachments:[{name:"投影機HDMI接孔.jpg",size:"1.2 MB",isImg:true,data:"../08_共用/att/projector.jpg"},{name:"筆電無訊號畫面.png",size:"840 KB",isImg:true,data:"../08_共用/att/nosignal.png"}],
+   created:ago(6),updated:ago(2),sla:due("high",ago(5)),
+   events:[{t:"created",by:"u1",at:ago(6)},{t:"comment",by:"u1",at:ago(6),x:{text:"明早 9 點客戶簡報，麻煩盡快！"}},
+     {t:"assigned",by:"u2",at:ago(4),x:{}},{t:"comment",by:"u2",at:ago(2),x:{text:"已到現場，初判 HDMI 孔接觸不良，正在調備機。"}}]},
+  {id:"k2",no:tno(0.4),title:"Excel 月結巨集一開就當機",cat:"IT",prio:"mid",status:"open",resolution:null,
+   reqId:"u6",reqDept:"財務部",asgId:null,asgDept:"資訊部",collab:[],refNo:null,pausedAt:null,
+   desc:"月結用的 Excel 巨集檔一打開就無回應，檔案約 40MB。",
+   attachments:[],created:ago(9),updated:ago(9),sla:due("mid",ago(9)),
+   events:[{t:"created",by:"u6",at:ago(9)}]},
+  {id:"k3",no:tno(0.5),title:"申請正式機資料庫只讀權限",cat:"ACC",prio:"mid",status:"pending_approval",resolution:null,
+   reqId:"u2",reqDept:"資訊部",asgId:null,asgDept:"資訊部",collab:[],refNo:null,pausedAt:ago(12),
+   desc:"申請系統：客戶資料庫（正式機）\n權限範圍：只讀\n用途：協助查詢客訴資料，需主管核准。",
+   attachments:[],created:ago(13),updated:ago(12),sla:due("mid",ago(13)),
+   events:[{t:"created",by:"u2",at:ago(13)},{t:"approval_requested",by:"u2",at:ago(12),x:{auto:true}}]},
+  {id:"k4",no:tno(1.0),title:"請採購 10 張人體工學椅",cat:"PUR",prio:"low",status:"need_info",resolution:null,
+   reqId:"u1",reqDept:"業務部",asgId:"h_ga",asgDept:"行政部",collab:[],refNo:null,pausedAt:ago(18),
+   desc:"業務部座椅老舊，擬採購 10 張人體工學椅。",
+   attachments:[],created:ago(26),updated:ago(18),sla:due("low",ago(26)),
+   events:[{t:"created",by:"u1",at:ago(26)},{t:"assigned",by:"h_ga",at:ago(24),x:{}},
+     {t:"returned",by:"h_ga",at:ago(18),x:{reason:"採購需附至少三家廠商報價與型號，請補充後再送。"}}]},
+  {id:"k5",no:tno(1.6),title:"官網聯絡表單收不到通知信",cat:"IT",prio:"high",status:"resolved",resolution:null,
+   reqId:"u5",reqDept:"行政部",asgId:"u2",asgDept:"資訊部",collab:[],refNo:null,pausedAt:ago(20),
+   desc:"客戶從官網送出聯絡表單後，我們信箱收不到通知信。",
+   attachments:[],created:ago(40),updated:ago(20),sla:due("high",ago(39)),
+   events:[{t:"created",by:"u5",at:ago(40)},{t:"assigned",by:"u2",at:ago(38),x:{}},
+     {t:"completed",by:"u2",at:ago(20),x:{note:"SMTP 寄件帳號密碼過期，已更新並寄測試信成功，請確認可正常收信。"}}]},
+  {id:"k6",no:tno(0.15),title:"VPN 連線頻繁斷線（多人回報）",cat:"IT",prio:"urgent",status:"in_progress",resolution:null,
+   reqId:"u6",reqDept:"財務部",asgId:"u2",asgDept:"資訊部",collab:["行政部"],refNo:null,pausedAt:null,
+   desc:"這兩天 VPN 每 10 分鐘斷一次，財務月結受影響，多位同仁回報。",
+   attachments:[{name:"VPN連線中斷log.txt",size:"24 KB",isImg:false,data:"../08_共用/att/vpnlog.txt"}],
+   created:ago(3),updated:ago(0.5),sla:due("urgent",ago(2.6)),
+   events:[{t:"created",by:"u6",at:ago(3)},{t:"assigned",by:"u2",at:ago(2.6),x:{}},
+     {t:"comment",by:"u2",at:ago(1),x:{text:"已聯絡 ISP，疑似對外線路問題。"}},
+     {t:"collab_added",by:"u2",at:ago(0.5),x:{dept:"行政部"}}]},
+  {id:"k7",no:tno(1.3),title:"2F 影印機一直卡紙",cat:"GA",prio:"mid",status:"transferred",resolution:null,
+   reqId:"u1",reqDept:"業務部",asgId:null,asgDept:"行政部",collab:[],refNo:null,pausedAt:null,
+   desc:"2F 影印機一直卡紙，清過紙匣仍無改善，疑似滾輪問題。",
+   attachments:[],created:ago(27),updated:ago(25),sla:due("mid",ago(26)),
+   events:[{t:"created",by:"u1",at:ago(27)},{t:"assigned",by:"u7",at:ago(26),x:{}},
+     {t:"transferred",by:"u7",at:ago(25),x:{toDept:"行政部",reason:"租賃機硬體維修需總務聯絡廠商。"}}]},
+  {id:"k8",no:tno(3.0),title:"新進員工筆電與帳號開通",cat:"IT",prio:"mid",status:"closed",resolution:"completed",
+   reqId:"u8",reqDept:"人資部",asgId:"u7",asgDept:"資訊部",collab:[],refNo:null,pausedAt:null,
+   desc:"報到日：上週一\n姓名 / 部門：林佳穎 / 業務部\n需求：筆電、AD 帳號、Email、VPN",
+   attachments:[],created:ago(80),updated:ago(74),sla:due("mid",ago(79)),
+   events:[{t:"created",by:"u8",at:ago(80)},{t:"assigned",by:"u7",at:ago(79),x:{}},
+     {t:"completed",by:"u7",at:ago(76),x:{note:"設備與帳號已備妥交付。"}},{t:"closed",by:"u8",at:ago(74),x:{reso:"completed"}}]},
+  {id:"k9",no:tno(5.0),title:"申請外部 SaaS 試用帳號",cat:"ACC",prio:"low",status:"closed",resolution:"requester_closed",
+   reqId:"u1",reqDept:"業務部",asgId:"u2",asgDept:"資訊部",collab:[],refNo:null,pausedAt:null,
+   desc:"想試用某外部分析工具，申請帳號。",
+   attachments:[],created:ago(130),updated:ago(120),sla:due("low",ago(130)),
+   events:[{t:"created",by:"u1",at:ago(130)},{t:"approval_requested",by:"u1",at:ago(129),x:{auto:true}},
+     {t:"returned",by:"u2",at:ago(126),x:{reason:"此工具採購流程未啟動，請確認預算後再申請。"}},
+     {t:"closed",by:"u1",at:ago(120),x:{reso:"requester_closed",reason:"專案改用內部工具，不需要了。"}}]},
+  /* 多受案部門 demo：新人到職，資訊部+人資部各自負責、各自完成 */
+  {id:"k10",no:tno(0.3),title:"新進業務專員到職準備（跨部門）",cat:"HR",prio:"mid",reqId:"u1",reqDept:"業務部",resolution:null,collab:[],refNo:null,sharedAppr:{st:"none",by:null,opinion:""},
+   desc:"下週一新人報到，需資訊部備設備與帳號、人資部備到職文件與保險。",attachments:[],created:ago(8),updated:ago(1),
+   tracks:[{dept:"資訊部",asgId:"u2",st:"working",sla:due("mid",ago(7)),appr:{st:"none"}},
+           {dept:"人資部",asgId:"u8",st:"done",sla:due("mid",ago(7)),appr:{st:"none"}}],
+   events:[{t:"created",by:"u1",at:ago(8),x:{multi:["資訊部","人資部"]}},
+     {t:"assigned",by:"u2",at:ago(6),x:{dept:"資訊部"}},
+     {t:"assigned",by:"u8",at:ago(6),x:{dept:"人資部"}},
+     {t:"track_done",by:"u8",at:ago(1),x:{dept:"人資部",note:"到職文件與保險已備齊。"}}]},
+  /* 一般使用者→部門主管 簽核 demo：王小明(業務部)送出，待業務部主管 周文彬 核准 */
+  {id:"k11",no:tno(0.25),title:"申請南區客戶拜訪差旅預支",cat:"ACC",prio:"mid",status:"pending_approval",resolution:null,
+   reqId:"u1",reqDept:"業務部",asgId:null,asgDept:"行政部",collab:[],refNo:null,pausedAt:ago(5),
+   desc:"申請事由：南區三天客戶拜訪差旅\n預支金額：約 12,000 元\n需業務部主管核准後送行政部辦理。",
+   attachments:[],created:ago(6),updated:ago(5),sla:due("mid",ago(6)),
+   events:[{t:"created",by:"u1",at:ago(6)},{t:"approval_requested",by:"u1",at:ago(5),x:{auto:true}}]}
+];
+/* 舊單(單一受案)遷移成 tracks 模型 */
+function migrate(t){
+  if(!t.tracks){
+    const st=(t.status==="resolved"||(t.status==="closed"&&t.resolution==="completed"))?"done"
+      :t.status==="need_info"?"need_info":(t.asgId?"working":"assigned");
+    t.tracks=[{dept:t.asgDept,asgId:t.asgId||null,st,sla:t.sla,appr:{st:"none"}}];
+    t.sharedAppr={st:t.status==="pending_approval"?"pending":"none",by:null,opinion:""};
+  }
+  if(!t.sharedAppr)t.sharedAppr={st:"none",by:null,opinion:""};
+  rollup(t);
+}
+TICKETS.forEach(migrate);
+
+/* ====================== State ====================== */
+const state={user:null,route:"#/dashboard",filters:{q:"",status:"",prio:"",cat:""},tab:0,sidebarOpen:false,notifOpen:false,editingId:null,dashRange:"year",tplOpen:false,quick:null};
+const RANGES={year:"當年度",quarter:"本季",month:"本月",all:"全部"};
+function inRange(t){const r=state.dashRange;if(r==="all")return true;const d=new Date(),y=d.getFullYear(),c=new Date(t.created);
+  if(r==="year")return c.getFullYear()===y;
+  if(r==="month")return c.getFullYear()===y&&c.getMonth()===d.getMonth();
+  if(r==="quarter")return c.getFullYear()===y&&Math.floor(c.getMonth()/3)===Math.floor(d.getMonth()/3);
+  return true;}
+let draft={prio:"mid",cat:"IT",files:[],refNo:null,recipient:"",depts:[],recips:{}};
+let cmtFiles=[];
+let NOTIFS=[
+  {to:"u2",text:"工單 "+TICKETS[0].no+"（投影機）已指派給你。",tid:"k1",at:ago(4),read:false},
+  {to:"u4",text:"陳大華 送出簽核：申請正式機資料庫只讀權限，待你核准。",tid:"k3",at:ago(12),read:false},
+  {to:"u1",text:"你的工單（人體工學椅）被退回，需補充資料。",tid:"k4",at:ago(18),read:false},
+  {to:"u1",text:"工單（會議室投影機）已受理，處理中。",tid:"k1",at:ago(4),read:true},
+  {to:"m_bz",text:"王小明 送出主管簽核：南區客戶拜訪差旅預支，待你核准。",tid:"k11",at:ago(5),read:false}
+];
+/* ── localStorage 持久化：工單與通知存本機,離開重進保留(首頁「重置測試資料」清回種子) ── */
+const TK_KEY="ehub_tickets_v1", TKN_KEY="ehub_ticket_notifs_v1";
+(function(){try{
+  var t=localStorage.getItem(TK_KEY);
+  if(t){var a=JSON.parse(t);if(Array.isArray(a)&&a.length){TICKETS.length=0;a.forEach(function(x){TICKETS.push(x)});TICKETS.forEach(migrate);}}
+  var n=localStorage.getItem(TKN_KEY);
+  if(n){var b=JSON.parse(n);if(Array.isArray(b)){NOTIFS.length=0;b.forEach(function(x){NOTIFS.push(x)});}}
+}catch(e){}})();
+function saveState(){try{localStorage.setItem(TK_KEY,JSON.stringify(TICKETS));localStorage.setItem(TKN_KEY,JSON.stringify(NOTIFS));}catch(e){}}
+
+/* ====================== Transitions ====================== */
+const T=id=>TICKETS.find(t=>t.id===id);
+function ev(t,type,x){t.events.push({t:type,by:state.user.id,at:now(),x:x||{}})}
+function setStatus(t,ns){
+  const was=PAUSE.includes(t.status), will=PAUSE.includes(ns);
+  if(was&&!will&&t.pausedAt){t.sla+=now()-t.pausedAt;t.pausedAt=null;}
+  else if(!was&&will){t.pausedAt=now();}
+  t.status=ns;t.updated=now();
+}
+function mgrOf(dept){const u=Object.values(USERS).find(u=>u.role==="manager"&&u.dept===dept);if(u)return u.id;const a=Object.values(USERS).find(u=>u.role==="admin");return a?a.id:null}
+function notify(uid,text,tid){if(uid&&uid!==state.user.id){NOTIFS.push({to:uid,text,tid,at:now(),read:false});try{if(window.EHub&&EHub.pushNotif)EHub.pushNotif({to:USERS[uid]&&USERS[uid].name,mod:"ticket",text:text,link:"02_工單通/index.html#/t/"+tid,at:now()})}catch(e){}}}
+/* in-page modal — 取代 native prompt/confirm */
+function openModal({title,message,field,okText="確定",cancelText="取消",danger}){
+  return new Promise(resolve=>{
+    const host=document.getElementById("modal");
+    let fh="";
+    if(field){
+      if(field.type==="textarea")fh=`<textarea class="modal-input" id="modal-in" rows="3" placeholder="${field.placeholder||""}"></textarea>`;
+      else if(field.type==="select")fh=`<select class="modal-input" id="modal-in">${field.options.map(o=>`<option value="${o.value}">${o.label}</option>`).join("")}</select>`;
+      else fh=`<input class="modal-input" id="modal-in" placeholder="${field.placeholder||""}">`;
+    }
+    const withFiles=field&&field.files;
+    const filesHTML=withFiles?`<div class="filelist" id="modal-files" style="margin-top:10px"></div>
+      <button type="button" class="btn btn-ghost btn-sm" id="modal-attach" style="margin-top:8px">${ic("attach",14)}附加檔案</button>
+      <input type="file" id="modal-file" multiple style="display:none">`:"";
+    host.innerHTML=`<div class="modal-ov" id="modal-ov"><div class="modal-card">
+      <div class="modal-title">${title}</div>
+      ${message?`<div class="modal-msg">${message}</div>`:""}
+      ${field&&field.label?`<label class="modal-label">${field.label}</label>`:""}${fh}${filesHTML}
+      <div class="modal-foot"><button class="btn btn-ghost" id="modal-cc">${cancelText}</button>
+        <button class="btn btn-${danger?"danger":"primary"}" id="modal-ok">${okText}</button></div>
+    </div></div>`;
+    const inp=document.getElementById("modal-in");
+    const mfiles=[];
+    const close=v=>{document.onkeydown=null;host.innerHTML="";resolve(v)};
+    if(inp)setTimeout(()=>inp.focus(),20);
+    if(withFiles){
+      const fl=document.getElementById("modal-files");
+      const renderFl=()=>fl.innerHTML=mfiles.map((f,i)=>`<div class="fileitem"><div class="thumb">${(f.data||f.url)&&f.isImg?`<img src="${esc(f.data||f.url)}">`:ic(f.isImg?"image":"file",18)}</div><div class="meta"><div class="nm">${esc(f.name)}</div><div class="sz">${f.size}</div></div><button class="rm" onclick="this.parentNode.remove();window.__mfrm&&window.__mfrm(${i})">${ic("xCircle",18)}</button></div>`).join("");
+      window.__mfrm=i=>{mfiles.splice(i,1);renderFl()};
+      document.getElementById("modal-attach").onclick=()=>document.getElementById("modal-file").click();
+      document.getElementById("modal-file").onchange=e=>{EHub.readFiles(e.target.files,function(arr){arr.forEach(f=>mfiles.push(f));renderFl()});e.target.value=""};
+    }
+    document.getElementById("modal-ok").onclick=()=>{
+      if(!field)return close(true);
+      const v=field.type==="select"?inp.value:(inp.value||"").trim();
+      if(field.required&&!v&&!mfiles.length){inp.style.borderColor="var(--danger)";inp.focus();return}
+      close(withFiles?{text:v,files:mfiles}:v);
+    };
+    document.getElementById("modal-cc").onclick=()=>close(field?null:false);
+    document.getElementById("modal-ov").onclick=e=>{if(e.target.id==="modal-ov")close(field?null:false)};
+    if(inp&&field.type==="text")inp.onkeydown=e=>{if(e.key==="Enter")document.getElementById("modal-ok").click()};
+    document.onkeydown=e=>{if(e.key==="Escape")close(field?null:false)};
+  });
+}
+const mArea=(title,ph,req)=>openModal({title,field:{type:"textarea",placeholder:ph,required:req}});
+const mSelect=(title,label,opts)=>openModal({title,field:{type:"select",options:opts,label}});
+const mConfirm=(title,msg,danger)=>openModal({title,message:msg,danger});
+const deptOpts=()=>DEPTS.map(d=>({value:d,label:d}));
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function infoModal(title,html){const host=document.getElementById("modal");
+  host.innerHTML=`<div class="modal-ov" id="modal-ov"><div class="modal-card" style="max-width:520px">
+    <div class="modal-title">${title}</div><div class="modal-info">${html}</div>
+    <div class="modal-foot"><button class="btn btn-primary" id="modal-ok">關閉</button></div></div></div>`;
+  const close=()=>{host.innerHTML=""};
+  document.getElementById("modal-ok").onclick=close;
+  document.getElementById("modal-ov").onclick=e=>{if(e.target.id==="modal-ov")close()};}
+function showEditContent(content){
+  const html=content.map(c=>`<div class="diff-block"><div class="diff-l">${c.label}</div>
+    <div class="diff-row"><span class="diff-tag old">修改前</span><div class="diff-txt">${esc(c.from)||"（空）"}</div></div>
+    <div class="diff-row"><span class="diff-tag new">修改後</span><div class="diff-txt">${esc(c.to)||"（空）"}</div></div></div>`).join("");
+  infoModal("修改提單內容",html);}
+
+function touch(t){t.updated=now();rollup(t)}
+/* 受案部門軌操作 tracks[ki] */
+function claimTrack(id,ki){const t=T(id),k=t.tracks[ki];k.asgId=k.asgId||state.user.id;k.st="working";ev(t,"assigned",{dept:k.dept});touch(t);notify(t.reqId,`工單 ${t.no}（${k.dept}）已受理`,id);toast("已認領 "+k.dept+"，開始處理");render()}
+async function completeTrack(id,ki){const t=T(id),k=t.tracks[ki];
+  const r=await openModal({title:`完成本部門（${k.dept}）`,message:"標記此部門這段完成。全部受案部門都完成後，會送提單人確認。可附完成證明。",field:{type:"textarea",placeholder:"完成說明（選填）…",files:true}});
+  if(r===null)return;if(r.files.length)t.attachments=(t.attachments||[]).concat(r.files);
+  k.st="done";ev(t,"track_done",{dept:k.dept,note:r.text,atts:r.files});touch(t);
+  if(t.tracks.every(x=>x.st==="done")){notify(t.reqId,`工單 ${t.no} 各部門皆完成，請確認`,id);toast("此部門完成 · 全部完成→已送提單人確認")}else toast("此部門完成（其他部門仍處理中）");
+  render()}
+async function returnTrack(id,ki){const t=T(id),k=t.tracks[ki];const r=await mArea(`退回提單人（${k.dept}）`,"退回原因（必填，例：請補充報價/規格）",true);if(!r)return;
+  k.st="need_info";ev(t,"returned",{dept:k.dept,reason:r});touch(t);notify(t.reqId,`工單 ${t.no}（${k.dept}）被退回，需要你補件`,id);toast("已退回提單人（"+k.dept+"）");render()}
+async function transferTrack(id,ki){const t=T(id),k=t.tracks[ki];const d=await mSelect("轉單","轉給哪個部門？",deptOpts());if(!d)return;if(d===k.dept){toast("已是該部門","warn");return}
+  const r=await mArea("轉單原因","轉單原因（選填）",false);if(r===null)return;const from=k.dept;k.dept=d;k.asgId=null;k.st="assigned";ev(t,"transferred",{fromDept:from,toDept:d,reason:r});touch(t);notify(mgrOf(d),`轉來工單（${t.no}）：${t.title}`,id);toast("已轉單至 "+d);render()}
+async function requestSharedApproval(id,ki){const t=T(id);if(t.sharedAppr.st==="pending"){toast("已在等主管簽核","warn");return}
+  const r=await mArea("請提單人主管簽核","送簽說明（選填）",false);if(r===null)return;t.sharedAppr={st:"pending",by:null,opinion:""};ev(t,"approval_requested",{shared:true,dept:t.tracks[ki].dept,note:r});touch(t);
+  notify(mgrOf(t.reqDept),`${USERS[state.user.id].name} 送出簽核：${t.title}`,id);toast("已送提單人主管簽核（全單暫停）");render()}
+async function requestDeptApproval(id,ki){const t=T(id),k=t.tracks[ki];if(k.appr.st==="pending"){toast("已在等簽核","warn");return}
+  const r=await mArea(`請 ${k.dept} 主管簽核`,"送簽說明（選填）",false);if(r===null)return;k.appr={st:"pending"};ev(t,"dept_approval_requested",{dept:k.dept,note:r});touch(t);
+  notify(mgrOf(k.dept),`${USERS[state.user.id].name}（${k.dept}）送出簽核：${t.title}`,id);toast("已送 "+k.dept+" 主管簽核（該部門暫停）");render()}
+async function approveShared(id){const t=T(id);const op=await mArea("核准簽核","簽核意見（選填，各受案部門都會看到已簽核）",false);if(op===null)return;
+  t.sharedAppr={st:"approved",by:state.user.id,opinion:op};ev(t,"approved",{shared:true,opinion:op});touch(t);t.tracks.forEach(k=>notify(k.asgId,`簽核已核准：${t.title}`,id));toast("已核准（各部門可繼續）");render()}
+async function rejectShared(id){const t=T(id);const r=await mArea("駁回簽核","駁回原因（必填）",true);if(!r)return;
+  t.sharedAppr={st:"none",by:state.user.id,opinion:""};ev(t,"approval_rejected",{shared:true,reason:r});touch(t);t.tracks.forEach(k=>notify(k.asgId,`簽核被駁回，退回重辦：${t.title}`,id));toast("已駁回，退回受案");render()}
+async function approveDept(id,ki){const t=T(id),k=t.tracks[ki];const op=await mArea(`核准 ${k.dept} 簽核`,"簽核意見（選填）",false);if(op===null)return;k.appr={st:"approved",by:state.user.id,opinion:op};ev(t,"dept_approved",{dept:k.dept,opinion:op});touch(t);notify(k.asgId,`${k.dept} 簽核已核准：${t.title}`,id);toast("已核准");render()}
+async function rejectDept(id,ki){const t=T(id),k=t.tracks[ki];const r=await mArea(`駁回 ${k.dept} 簽核`,"駁回原因（必填）",true);if(!r)return;k.appr={st:"none"};ev(t,"dept_approval_rejected",{dept:k.dept,reason:r});touch(t);notify(k.asgId,`${k.dept} 簽核被駁回：${t.title}`,id);toast("已駁回");render()}
+async function resubmitTrack(id,ki){const t=T(id),k=t.tracks[ki];
+  const r=await openModal({title:`補充後再送（${k.dept}）`,message:"補充說明與附件後，送回該受案部門繼續處理。",field:{type:"textarea",placeholder:"補充說明（選填）…",files:true}});
+  if(r===null)return;if(r.text||r.files.length)ev(t,"comment",{text:(r.text||"（補充附件）")+`　〔致 ${k.dept}〕`,atts:r.files});if(r.files.length)t.attachments=(t.attachments||[]).concat(r.files);
+  k.st="working";ev(t,"resubmitted",{dept:k.dept});touch(t);notify(k.asgId,`提單人已補件再送（${k.dept}）：${t.title}`,id);toast("已補充並送回 "+k.dept);render()}
+function confirmClose(id){const t=T(id);t.resolution="completed";touch(t);ev(t,"closed",{reso:"completed"});t.tracks.forEach(k=>notify(k.asgId,`提單人已確認結案：${t.title}`,id));toast("已確認，工單結案");render()}
+async function rejectComplete(id){const t=T(id);const r=await mArea("退回受案","退回原因（必填，哪裡還沒完成）",true);if(!r)return;t.tracks.forEach(k=>{if(k.st==="done")k.st="working"});ev(t,"reopened",{reason:r});touch(t);t.tracks.forEach(k=>notify(k.asgId,`提單人認為未完成，退回：${t.title}`,id));toast("已退回受案（全部部門）");render()}
+async function requesterClose(id){const t=T(id);const ok=await mConfirm("確定自行結案？","結案後此工單即關閉、無法復原，並會通知各受案部門。確定要結案嗎？",true);if(!ok)return;
+  const r=await mArea("結案原因","結案原因（選填，例：需求消失、改用其他方式）",false);if(r===null)return;t.resolution="requester_closed";touch(t);ev(t,"closed",{reso:"requester_closed",reason:r});t.tracks.forEach(k=>notify(k.asgId||mgrOf(k.dept),`提單人已自行結案（${t.no}）：${t.title}`,id));toast("已結案，已通知受案單位");render()}
+async function withdraw(id){const t=T(id);const ok=await mConfirm("撤回工單","確定撤回此工單？撤回後即結案，無法復原。",true);if(!ok)return;t.resolution="withdrawn";touch(t);ev(t,"withdrawn",{});toast("已撤回");render()}
+async function changePrio(id){const t=T(id);const p=await mSelect("調整優先級","新優先級",Object.entries(PRIOS).map(([k,v])=>({value:k,label:v.l+"（"+v.h+" 小時內）"})));if(!p)return;const from=t.prio;t.prio=p;t.tracks.forEach(k=>{if(k.st!=="done")k.sla=due(p,t.created)});t.updated=now();ev(t,"priority_changed",{from,to:p});toast("優先級改為 "+PRIOS[p].l);render()}
+async function addCollab(id){const t=T(id);const d=await mSelect("加會辦","加會辦哪個部門（協助參與，非各自負責）？",deptOpts());if(!d)return;if(!t.collab)t.collab=[];if(t.collab.includes(d)){toast("該部門已在會辦","warn");return}t.collab.push(d);ev(t,"collab_added",{dept:d});notify(mgrOf(d),`邀請會辦：${t.title}`,id);toast("已加會辦 "+d);render()}
+function addComment(id){const t=T(id);const ta=document.getElementById("cmt");const v=ta?ta.value.trim():"";if(!v&&!cmtFiles.length)return;ev(t,"comment",{text:v,atts:cmtFiles.slice()});cmtFiles=[];toast("已留言","send");render()}
+function editTicket(id){const t=T(id);state.editingId=id;draft={prio:t.prio,cat:t.cat,files:(t.attachments||[]).slice(),refNo:t.refNo||null,_title:t.title,_desc:t.desc,_dept:t.reqDept};state.route="#/new";location.hash="#/new";render()}
+
+/* 工單層操作（提單人 + 提單人主管共用簽核） */
+function ticketActions(t){
+  const u=state.user,A=[],admin=u.role==="admin";const a=(l,i,f,s)=>A.push({label:l,icon:i,fn:f,style:s});
+  if(t.status==="closed")return A;const isReq=t.reqId===u.id;
+  if(t.sharedAppr.st==="pending"&&((u.role==="manager"&&t.reqDept===u.dept)||admin)){a("核准簽核（全單）","shield",()=>approveShared(t.id),"primary");a("駁回 · 退回受案","back",()=>rejectShared(t.id),"danger")}
+  if(isReq){
+    if(t.status==="open"){a("編輯工單","edit",()=>editTicket(t.id),"ghost");a("撤回工單","back",()=>withdraw(t.id),"danger")}
+    if(t.status==="resolved"){a("確認完成 · 結案","checkLn",()=>confirmClose(t.id),"primary");a("未完成 · 退回受案","reply",()=>rejectComplete(t.id),"ghost")}
+    if(t.status==="need_info"){a("編輯內容","edit",()=>editTicket(t.id),"ghost");a("自行結案","close",()=>requesterClose(t.id),"ghost")}
+  }
+  if((isReq||admin)&&t.status!=="resolved"){a("調整優先級","alarm",()=>changePrio(t.id),"ghost");a("加會辦部門","building",()=>addCollab(t.id),"ghost")}
+  return A;
+}
+/* 受案部門軌操作（該部門處理人/主管） */
+function trackActions(t,ki){
+  const u=state.user,k=t.tracks[ki],A=[],admin=u.role==="admin";const a=(l,i,f,s)=>A.push({label:l,icon:i,fn:f,style:s});
+  if(t.status==="closed")return A;
+  if(t.sharedAppr.st==="pending")return A;
+  if(k.appr.st==="pending"){if((u.role==="manager"&&u.dept===k.dept)||admin){a("核准本部門簽核","shield",()=>approveDept(t.id,ki),"primary");a("駁回","back",()=>rejectDept(t.id,ki),"danger")}return A}
+  if(k.st==="need_info"){if(t.reqId===u.id)a("補充後再送","reply",()=>resubmitTrack(t.id,ki),"primary");return A}
+  if(k.st==="done")return A;
+  const mine=k.asgId?(k.asgId===u.id||admin):(((u.role==="handler"||u.role==="manager")&&u.dept===k.dept)||admin);
+  if(!mine)return A;
+  if(k.st==="assigned")a("認領 · 開始處理","receive",()=>claimTrack(t.id,ki),"primary");
+  if(k.st==="working"){a("完成本部門","checkLn",()=>completeTrack(t.id,ki),"primary");a("請提單人主管簽核","shield",()=>requestSharedApproval(t.id,ki),"ghost");a("請本部門主管簽核","shield",()=>requestDeptApproval(t.id,ki),"ghost");a("退回提單人","reply",()=>returnTrack(t.id,ki),"ghost");a("轉單","forward",()=>transferTrack(t.id,ki),"ghost")}
+  return A;
+}
+function myPrimary(t){const ta=ticketActions(t).find(a=>a.style==="primary");if(ta)return ta;
+  for(let ki=0;ki<t.tracks.length;ki++){const p=trackActions(t,ki).find(a=>a.style==="primary");if(p)return p}return null;}
+
+/* ====================== Visibility / tabs ====================== */
+function inDept(t,dept){return t.tracks.some(k=>k.dept===dept)||(t.collab||[]).includes(dept)}
+function needsMySign(t){const u=state.user;return (t.sharedAppr.st==="pending"&&(u.role==="admin"||(u.role==="manager"&&t.reqDept===u.dept)))||t.tracks.some(k=>k.appr.st==="pending"&&(u.role==="admin"||(u.role==="manager"&&k.dept===u.dept)))}
+function visible(){const u=state.user;if(!u)return [];if(u.role==="admin")return TICKETS;
+  return TICKETS.filter(t=>t.reqId===u.id||t.tracks.some(k=>k.asgId===u.id)
+    ||((u.role==="handler")&&inDept(t,u.dept))
+    ||((u.role==="manager")&&(t.reqDept===u.dept||inDept(t,u.dept))));
+}
+const ACTIVE=t=>t.status!=="closed";
+function tabsFor(u){
+  if(u.role==="requester")return [
+    {l:"需要我處理",f:t=>t.reqId===u.id&&["need_info","resolved"].includes(t.status)},
+    {l:"我的申請",f:t=>t.reqId===u.id}];
+  if(u.role==="handler")return [
+    {l:"待我處理",f:t=>ACTIVE(t)&&t.tracks.some(k=>trackBallOnMe(t,k))},
+    {l:"部門佇列",f:t=>ACTIVE(t)&&t.tracks.some(k=>k.dept===u.dept&&!k.asgId&&k.st==="assigned")},
+    {l:"部門全部",f:t=>inDept(t,u.dept)},
+    {l:"我發起的",f:t=>t.reqId===u.id}];
+  if(u.role==="manager")return [
+    {l:"待我簽核",f:t=>needsMySign(t)},
+    {l:"部門工單",f:t=>t.reqDept===u.dept||inDept(t,u.dept)},
+    {l:"我發起的",f:t=>t.reqId===u.id}];
+  return [{l:"全部工單",f:()=>true},{l:"進行中",f:ACTIVE},{l:"待簽核",f:t=>t.sharedAppr.st==="pending"||t.tracks.some(k=>k.appr.st==="pending")}];
+}
+function pendingApprovalCount(){return TICKETS.filter(t=>t.status!=="closed"&&needsMySign(t)).length}
+function myTodoCount(){return visible().filter(t=>ballOnMe(t)).length}
+/* 把當前登入者「待我處理」工單數即時寫進共用紅點層,首頁即時撈、隨操作更新 */
+function syncTicketBadge(){try{var EH=window.EHub;if(!EH||!EH.loadBadges)return;var cnt={};Object.keys(USERS).forEach(function(uid){var u=USERS[uid];if(!u||u.role==="admin")return;cnt[uid]=TICKETS.filter(function(t){return ballOnMe(t,u)}).length});var m=EH.loadBadges();for(var nm in m){if(m[nm]&&m[nm].ticket!=null)delete m[nm].ticket}for(var u2 in cnt){var n2=USERS[u2]&&USERS[u2].name;if(!n2)continue;if(!m[n2])m[n2]={};m[n2].ticket=cnt[u2]}EH.saveBadges(m)}catch(e){}}
+function unreadCount(){return NOTIFS.filter(n=>n.to===state.user.id&&!n.read).length}
+
+/* ====================== Render helpers ====================== */
+function avatar(uid){const u=USERS[uid];if(!u)return `<div class="av-unassigned">${ic("user",15)}</div>`;
+  const hue=[...u.name].reduce((a,c)=>a+c.charCodeAt(0),0)%360;
+  return `<div class="av" style="background:hsla(${hue},48%,52%,.2);color:hsl(${hue},60%,58%);border:1px solid hsla(${hue},48%,55%,.34)">${u.name[0]}</div>`}
+function statusBadge(t){const m=STATUS[t.status];let lbl=m.l;if(t.status==="closed"&&t.resolution)lbl="已結案 · "+RESO[t.resolution].l;
+  return `<span class="badge" style="color:${m.c};background:${m.bg}"><span class="dot"></span>${lbl}</span>`}
+function prioPill(p){const m=PRIOS[p];return `<span class="pri" style="color:${m.c}"><span class="bar" style="background:${m.c}"></span>${m.l}</span>`}
+function slaCell(t){const s=slaInfo(t);if(s.kind==="none")return `<span class="sla none">—</span>`;
+  const i=s.kind==="paused"?"hourglass":(s.kind==="over"?"alarm":"time");
+  return `<span class="sla ${s.kind}">${ic(i,14)}${s.txt}</span>`}
+function ballTag(t){if(t.status==="closed")return "";const me=ballOnMe(t);
+  return `<span class="ball ${me?"me":""}">${ic("hourglass",12)}${me?"待我":"待 "+ballText(t)}</span>`}
+function trackBadge(t,k){
+  let lbl,c;
+  if(t.sharedAppr.st==="pending"){lbl="待主管簽核";c="s-appr"}
+  else if(k.appr.st==="pending"){lbl="待"+k.dept+"主管簽核";c="s-appr"}
+  else{const m={assigned:["待受理","s-open"],working:["處理中","s-progress"],need_info:["待提單人補件","s-need"],done:["已完成","s-resolved"]}[k.st];lbl=m[0];c=m[1]}
+  return `<span class="badge" style="color:var(--${c});background:var(--${c}-bg)"><span class="dot"></span>${lbl}</span>`}
+function stepper(t){
+  const steps=["已提交","受理處理","完成確認","已結案"];
+  const cur=t.status==="closed"?3:t.status==="resolved"?2:1;
+  const sub={open:"待受理（受案部門待接手）",in_progress:"處理中",pending_approval:"待主管簽核",need_info:"待提單人補件",resolved:"待提單人確認",closed:(t.resolution?RESO[t.resolution].l:"完成")}[t.status]||"處理中";
+  const who=t.status!=="closed"?ballText(t):null;
+  return `<div class="stepper">${steps.map((s,i)=>
+    `<div class="step ${i<cur?"done":i===cur?"cur":""}"><div class="sc">${i<cur?ic("checkLn",14):(i+1)}</div><div class="sl">${s}</div></div>${i<3?`<div class="sline ${i<cur?"done":""}"></div>`:""}`).join("")}</div>
+    <div class="step-now">${ic("hourglass",14)}<span>目前環節：<b>${sub}</b>${who?` · 等 <b>${who}</b>`:""}</span></div>`;
+}
+function toast(msg,icon="check"){const el=document.getElementById("toast");el.innerHTML=ic(icon==="check"?"checkLn":icon,16)+`<span>${msg}</span>`;el.classList.add("show");clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove("show"),2500)}
+function attHTML(a,mini){const src=a.data||a.url;const dl=mini?"":(src?`<a class="dl" title="下載" href="${esc(src)}" download="${esc(a.name)}" onclick="event.stopPropagation()">${ic("download",18)}</a>`:`<button class="dl" title="下載" onclick="event.stopPropagation();toast('此為示意附件（無實際檔案）','download')">${ic("download",18)}</button>`);return `<div class="att ${mini?"mini":""}">
+  <div class="thumb">${src&&a.isImg?`<img src="${esc(src)}" style="cursor:zoom-in" onclick="event.stopPropagation();EHub.lightbox(this.src)">`:ic(a.isImg?"image":"file",mini?15:20)}</div>
+  <div><div class="nm">${esc(a.name)}</div>${a.size&&!mini?`<div class="sz">${a.size}</div>`:""}</div>
+  ${dl}</div>`}
+
+/* action registry — avoid fragile inline closures */
+let _fnreg={},_fnid=0;
+function reg(fn){const k="_f"+(_fnid++);_fnreg[k]=fn;return "window.__call('"+k+"')"}
+window.__call=k=>{if(_fnreg[k])_fnreg[k]()};
+
+/* ====================== Views ====================== */
+function viewDashboard(){
+  const ts=visible(), u=state.user;
+  const todo=ts.filter(t=>ballOnMe(t));            // 待我處理：永遠當前，不受時間區間影響
+  const inr=ts.filter(inRange);                    // 統計範圍（預設當年度）
+  const overList=inr.filter(t=>slaInfo(t).kind==="over"), warnList=inr.filter(t=>slaInfo(t).kind==="warn");
+  const overN=overList.length, warnN=warnList.length;
+  const openN=inr.filter(ACTIVE).length, doneN=inr.filter(t=>t.status==="closed").length;
+  const cnt={};Object.keys(STATUS).forEach(k=>cnt[k]=inr.filter(t=>t.status===k).length);
+  const maxC=Math.max(1,...Object.values(cnt));
+  const kpi=(t,bg,col,v,l,d,q)=>`<div class="kpi${q?" kpi-click":""}"${q?` onclick="setQuick('${q.k}','${q.l}')"`:""}><div class="tile" style="background:${bg};color:${col}">${ic(t,21)}</div><div class="v">${v}</div><div class="l">${l}</div>${d?`<div class="d" style="color:${col}">${d}</div>`:""}${q?`<div class="kgo">查看列表 ›</div>`:""}</div>`;
+  return `
+  <div class="pagehead"><div><div class="k">總覽</div><h2>儀表板</h2>
+    <p>${userRoleLabel(u)}視角 · 統計區間 ${RANGES[state.dashRange]}（共 ${inr.length} 張）</p></div>
+    <div style="display:flex;gap:10px;align-items:center">
+      <div class="selwrap"><select class="filter" onchange="setDashRange(this.value)">${Object.entries(RANGES).map(([k,v])=>`<option value="${k}" ${state.dashRange===k?"selected":""}>${v}</option>`).join("")}</select></div>
+      <a href="#/new" class="btn btn-primary">${ic("add",17)}新增工單</a></div></div>
+  ${overN?`<div class="alertbar over">${ic("alarm",18)}<div class="al-body"><div class="al-h">有 ${overN} 張工單已逾期（超過處理期限），點擊立即處理${u.role==="manager"?"（已通知部門主管）":""}：</div>
+    ${overList.map(t=>`<a href="#/t/${t.id}" class="al-item">${esc(t.title)}<span>${t.no} · ${slaInfo(t).txt}</span></a>`).join("")}</div></div>`:""}
+  ${warnN&&!overN?`<div class="alertbar warn">${ic("warn",18)}<div class="al-body"><div class="al-h">有 ${warnN} 張工單即將到期（距處理期限剩 6 小時內），點擊處理：</div>
+    ${warnList.map(t=>`<a href="#/t/${t.id}" class="al-item">${esc(t.title)}<span>${t.no} · ${slaInfo(t).txt}</span></a>`).join("")}</div></div>`:""}
+  <div class="kpis">
+    ${kpi("hourglass","var(--accent-soft)","var(--accent-ink)",todo.length,"待我處理","",{k:"todo",l:"待我處理"})}
+    ${kpi("inbox","var(--s-open-bg)","var(--s-open)",openN,"進行中","",{k:"active",l:"進行中"})}
+    ${kpi("alarm","var(--danger-bg)","var(--danger)",overN,"已逾期","",{k:"over",l:"已逾期"})}
+    ${kpi("checkLn","var(--s-resolved-bg)","var(--s-resolved)",doneN,"已結案","",{k:"closed",l:"已結案"})}
+  </div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-h">${ic("hourglass",18)}<h3>待我處理</h3><span class="mono">${todo.length} 筆 · 即時</span></div>
+      <div style="padding:6px 8px">
+        ${todo.length?todo.slice(0,6).map(t=>`<a href="#/t/${t.id}" class="recent-row" style="display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:8px">
+          ${avatar(t.reqId)}<div style="min-width:0;flex:1"><div class="t-title" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t.title)}</div>
+          <div class="t-sub"><span class="t-no">${t.no}</span> · ${stalledDays(t)>0?`<span class="stall">停滯 ${stalledDays(t)} 天</span>`:rel(t.updated)}</div></div>${statusBadge(t)}</a>`).join("")
+          :`<div class="empty" style="padding:30px">${ic("checkLn",34)}<div>目前沒有待你處理的工單 🎉</div></div>`}
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-h">${ic("barchart",18)}<h3>各狀態分布</h3><span class="mono">${RANGES[state.dashRange]}</span></div>
+      <div class="bars">
+        ${Object.keys(STATUS).map(k=>`<div class="bar-row"><span class="nm">${STATUS[k].l}</span>
+          <div class="bar-track"><div class="bar-fill" style="width:${cnt[k]/maxC*100}%;background:${STATUS[k].c}"></div></div>
+          <span class="vn">${cnt[k]}</span></div>`).join("")}
+      </div>
+    </div>
+  </div>`;
+}
+
+function viewTickets(forceApproval){
+  const u=state.user;let tabs=tabsFor(u);
+  if(forceApproval)tabs=[{l:"待我簽核",f:t=>needsMySign(t)}];
+  if(state.tab>=tabs.length)state.tab=0;
+  const f=state.filters;
+  const QF={todo:t=>ballOnMe(t),active:t=>t.status!=="closed",over:t=>slaInfo(t).kind==="over",closed:t=>t.status==="closed"};
+  const base=state.quick?visible().filter(QF[state.quick.kind]):visible().filter(tabs[state.tab].f);
+  let list=base.filter(t=>(!f.status||t.status===f.status)&&(!f.prio||t.prio===f.prio)&&(!f.cat||t.cat===f.cat)
+    &&(!f.q||t.title.includes(f.q)||t.no.toLowerCase().includes(f.q.toLowerCase()))).sort((a,b)=>b.updated-a.updated);
+  const opt=(o,cur,all)=>`<option value="">${all}</option>`+Object.entries(o).map(([k,v])=>`<option value="${k}" ${cur===k?"selected":""}>${typeof v==="string"?v:v.l}</option>`).join("");
+  return `
+  <div class="pagehead"><div><div class="k">${forceApproval?"簽核":"工單"}</div><h2>${forceApproval?"待我簽核":"工單列表"}</h2>
+    <p>${forceApproval?"以提單人部門主管身分簽核（核准後受案才繼續執行）":"依角色顯示可見範圍 · 標示「待誰處理」 · 點列開詳情"}</p></div>
+    <a href="#/new" class="btn btn-primary">${ic("add",17)}新增工單</a></div>
+  ${state.quick?`<div class="quickbar">${ic("filter",14)}<span>快速篩選：<b>${state.quick.label}</b>（${list.length} 筆）</span><button class="btn btn-ghost btn-sm" onclick="clearQuick()">${ic("close",14)}清除 · 看全部</button></div>`:`<div class="tabs">${tabs.map((tb,i)=>`<button class="tab ${i===state.tab?"active":""}" onclick="setTab(${i})">${tb.l}<span class="count">${visible().filter(tb.f).length}</span></button>`).join("")}</div>`}
+  <div class="filters">
+    <div class="selwrap"><select class="filter" onchange="setFilter('status',this.value)">${opt(STATUS,f.status,"全部狀態")}</select></div>
+    <div class="selwrap"><select class="filter" onchange="setFilter('prio',this.value)">${opt(PRIOS,f.prio,"全部優先級")}</select></div>
+    <div class="selwrap"><select class="filter" onchange="setFilter('cat',this.value)">${opt(CATS,f.cat,"全部類別")}</select></div>
+    ${f.status||f.prio||f.cat?`<button class="btn btn-ghost btn-sm" onclick="clearFilters()">${ic("close",15)}清除</button>`:""}
+  </div>
+  <div class="card">
+    ${list.length?`<table class="ttable"><thead><tr>
+      <th style="width:30%">工單</th><th>類別</th><th>優先級</th><th>提單人</th><th>待誰處理</th><th>狀態</th><th>處理期限</th>
+    </tr></thead><tbody>${list.map(rowHTML).join("")}</tbody></table>`
+    :`<div class="empty">${ic("inbox",40)}<div>此分類目前沒有工單</div></div>`}
+  </div>`;
+}
+function rowHTML(t){const me=ballOnMe(t),sd=stalledDays(t);
+  return `<tr class="${me?"row-me":""}" onclick="go('#/t/${t.id}')">
+    <td><div class="t-title">${esc(t.title)}</div><div class="t-sub"><span class="t-no">${t.no}</span>${t.tracks.length>1?` · ${ic("team",12)}${t.tracks.length} 部門共辦`:""}${t.collab&&t.collab.length?` · 會辦 ${t.collab.length}`:""}${t.refNo?` · ${ic("copy",12)}引用`:""}${sd>0&&ACTIVE(t)?` · <span class="stall">停滯 ${sd} 天</span>`:""}</div></td>
+    <td><span style="font-size:12.5px;color:var(--ink-2)">${CATS[t.cat].l}</span></td>
+    <td>${prioPill(t.prio)}</td>
+    <td><div class="who">${avatar(t.reqId)}<div><div class="nm">${USERS[t.reqId].name}</div><div class="dp">${t.reqDept}</div></div></div></td>
+    <td>${ballTag(t)}</td>
+    <td>${statusBadge(t)}</td>
+    <td>${slaCell(t)}</td></tr>`;
+}
+
+function trackCard(t,k,ki){
+  const acts=trackActions(t,ki), ks=slaOf(t,k), me=trackBallOnMe(t,k);
+  return `<div class="track-card ${me?"mine":""}">
+    <div class="track-h">
+      <span class="track-dept">${ic("building",14)}${k.dept}</span>
+      ${trackBadge(t,k)}
+      <div class="track-who">${k.asgId?`${avatar(k.asgId)}<span>${USERS[k.asgId].name}</span>`:`<span style="color:var(--ink-3)">待認領</span>`}</div>
+      <span class="track-sla ${k.st==="done"?"none":ks.kind}">${k.st==="done"?ic("checkLn",13)+"已完成":ic(ks.kind==="paused"?"hourglass":(ks.kind==="over"?"alarm":"time"),13)+ks.txt}</span>
+    </div>
+    ${acts.length?`<div class="track-acts">${acts.map(a=>`<button class="btn btn-${a.style} btn-sm" onclick="${reg(a.fn)}">${ic(a.icon,15)}${a.label}</button>`).join("")}</div>`:""}
+  </div>`;
+}
+function viewDetail(id){
+  const t=T(id);if(!t)return `<div class="empty">找不到工單</div>`;
+  const evs=[...t.events].sort((a,b)=>a.at-b.at);
+  const tActs=ticketActions(t);
+  const primary=ballOnMe(t)?myPrimary(t):null;
+  const sideActs=primary?tActs.filter(a=>a.label!==primary.label):tActs;
+  const s=ticketSla(t);
+  return `
+  <a href="#/tickets" class="btn btn-ghost btn-sm" style="margin-bottom:16px">${ic("arrowL",16)}返回列表</a>
+  <div class="detail-grid">
+    <div class="card">
+      <div class="d-head">
+        <div class="top">${statusBadge(t)}${prioPill(t.prio)}${t.status!=="closed"?`<span class="ball ${ballOnMe(t)?"me":""}">${ic("hourglass",12)}${ballOnMe(t)?"待我處理":"待 "+ballText(t)}</span>`:""}
+          <span class="t-no" style="margin-left:auto">${t.no}</span></div>
+        <h2>${esc(t.title)}</h2>
+        <div class="d-meta">
+          <div class="it"><div class="k">類別</div><div>${CATS[t.cat].l}${CATS[t.cat].approve?" · 需簽核":""}</div></div>
+          <div class="it"><div class="k">提單人</div><div>${USERS[t.reqId].name}（${t.reqDept}）</div></div>
+          <div class="it"><div class="k">受案部門</div><div>${t.tracks.map(k=>k.dept).join("、")}</div></div>
+          <div class="it"><div class="k">建立</div><div>${fmt(t.created)}</div></div>
+        </div>
+      </div>
+      <div class="d-step">${stepper(t)}${primary?`<button class="btn btn-primary step-act" onclick="${reg(primary.fn)}">${ic(primary.icon,16)}${primary.label}</button>`:""}</div>
+      <div class="d-body">
+        ${t.refNo?`<div class="refban">${ic("copy",15)}引用自工單 ${t.refNo}</div>`:""}
+        <div class="sec-l">問題描述</div>
+        <div class="d-desc">${esc(t.desc)}</div>
+        ${t.attachments&&t.attachments.length?`<div class="sec-l">附件（${t.attachments.length}）</div><div class="att-grid">${t.attachments.map(a=>attHTML(a)).join("")}</div>`:""}
+        <div class="sec-l">受案進度（${t.tracks.length} 部門${t.tracks.length>1?" · 各自負責、全部完成才結案":""}）</div>
+        <div class="tracks">${t.tracks.map((k,ki)=>trackCard(t,k,ki)).join("")}</div>
+        ${t.collab&&t.collab.length?`<div class="sec-l">會辦部門（協助參與）</div><div class="chips">${t.collab.map(d=>`<span class="chip">${ic("team",13)}${d}</span>`).join("")}</div>`:""}
+      </div>
+      <div class="card-h" style="border-top:1px solid var(--line-2)">${ic("time",18)}<h3>處理時間軸</h3><span class="mono">${evs.length} 筆紀錄</span></div>
+      <div class="timeline">${evs.map(evHTML).join("")}</div>
+      ${t.status!=="closed"?`<div class="commentbox">
+        <div class="row"><textarea id="cmt" placeholder="新增留言…"></textarea>
+          <button class="btn btn-primary" onclick="addComment('${t.id}')">${ic("send",16)}送出</button></div>
+        <div class="cmt-tools">
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('cmtfile').click()">${ic("attach",15)}附加檔案</button>
+          <input type="file" id="cmtfile" multiple style="display:none" onchange="onCmtFiles(this)">
+          <span class="cmt-att" id="cmtcount">${cmtFiles.length?cmtFiles.length+" 個檔案待送（測試）":""}</span>
+        </div></div>`:""}
+    </div>
+    <div class="card side">
+      <div class="card-h"><h3>處理期限</h3></div>
+      <div class="side-sec"><div class="sla-big">
+        ${s.kind==="none"?`<div class="t" style="color:var(--s-resolved)">${t.status==="closed"?"已結案":"全部完成"}</div><div class="l">${t.resolution?RESO[t.resolution].l:"待提單人確認"}</div>`
+        :s.kind==="paused"?`<div class="t" style="color:var(--ink-3)">計時暫停</div><div class="l">等別人處理中，暫停計時</div>`
+        :`<div class="t" style="color:${s.kind==="over"?"var(--danger)":s.kind==="warn"?"var(--s-progress)":"var(--ink)"}">${s.txt}</div>
+          <div class="l">最緊急部門 · ${PRIOS[t.prio].l}優先（${PRIOS[t.prio].h}h）</div>`}
+      </div></div>
+      ${sideActs.length?`<div class="side-sec"><div class="k">工單操作 · ${userRoleLabel(state.user)}</div><div class="actcol">
+        ${sideActs.map(a=>`<button class="btn btn-${a.style}" onclick="${reg(a.fn)}">${ic(a.icon,16)}${a.label}</button>`).join("")}</div></div>`
+        :(t.status!=="closed"&&!ballOnMe(t)?`<div class="side-sec"><div class="k">操作</div><div style="font-size:12.5px;color:var(--ink-3)">目前無可執行動作（不需你處理）。</div></div>`
+        :(t.status!=="closed"?`<div class="side-sec"><div class="k">操作</div><div style="font-size:12.5px;color:var(--ink-3)">你的操作在上方「受案進度」各部門卡片內。</div></div>`:""))}
+      <div class="side-sec"><div class="k">引用此單</div>
+        <button class="btn btn-ghost" style="width:100%;justify-content:flex-start" onclick="citeTicket('${t.id}')">${ic("copy",16)}引用內容開新單</button></div>
+      <div class="side-sec"><div class="k">參與者</div>
+        <div class="who" style="margin-bottom:8px">${avatar(t.reqId)}<div><div class="nm">${USERS[t.reqId].name}</div><div class="dp">提單人 · ${t.reqDept}</div></div></div>
+        ${t.tracks.map(k=>k.asgId?`<div class="who" style="margin-bottom:8px">${avatar(k.asgId)}<div><div class="nm">${USERS[k.asgId].name}</div><div class="dp">處理人 · ${k.dept}</div></div></div>`:`<div class="who" style="margin-bottom:8px"><div class="av-unassigned">${ic("user",14)}</div><div><div class="nm" style="color:var(--ink-3)">待認領</div><div class="dp">${k.dept}</div></div></div>`).join("")}
+        ${(t.collab||[]).map(d=>`<div class="who"><div class="av-unassigned">${ic("team",14)}</div><div><div class="nm">${d}</div><div class="dp">會辦</div></div></div>`).join("")}
+      </div>
+    </div>
+  </div>`;
+}
+function evHTML(e){const u=USERS[e.by]||{name:"系統"};const x=e.x||{};let txt="",extra="",cls="";const nm=`<b>${u.name}</b>`;
+  switch(e.t){
+    case "created":{let suf="";if(x.to)suf=`，指定 <b>${USERS[x.to].name}</b> 處理`;else if(x.multi||x.depts)suf=`，指派 <b>${(x.multi||x.depts).join("、")}</b>`;txt=`${nm} 建立工單${suf}`;break;}
+    case "assigned":txt=`${nm} 認領並開始處理${x.dept?`（${x.dept}）`:""}`;break;
+    case "approval_requested":txt=`${nm} ${x.auto?"（強制簽核類別）送出簽核":(x.shared?"送出提單人主管簽核":"送出主管簽核")}`;if(x.note)extra=esc(x.note);break;
+    case "approved":txt=`${nm} 核准簽核（全單）`;if(x.opinion){extra=esc(x.opinion);cls="opinion"}break;
+    case "approval_rejected":txt=`${nm} 駁回簽核 · 退回受案重辦`;extra=esc(x.reason);cls="reason";break;
+    case "dept_approval_requested":txt=`${nm} 送出 <b>${x.dept}</b> 主管簽核`;if(x.note)extra=esc(x.note);break;
+    case "dept_approved":txt=`${nm} 核准 <b>${x.dept}</b> 簽核`;if(x.opinion){extra=esc(x.opinion);cls="opinion"}break;
+    case "dept_approval_rejected":txt=`${nm} 駁回 <b>${x.dept}</b> 簽核`;extra=esc(x.reason);cls="reason";break;
+    case "returned":txt=`${nm} 退回提單人${x.dept?`（${x.dept}）`:""}`;extra=esc(x.reason);cls="reason";break;
+    case "resubmitted":txt=`${nm} 補件後重新送出${x.dept?`（${x.dept}）`:""}`;break;
+    case "track_done":txt=`${nm} 完成本部門${x.dept?`（${x.dept}）`:""}`;if(x.note)extra=esc(x.note);break;
+    case "completed":txt=`${nm} 標記完成 · 待提單人確認`;if(x.note)extra=esc(x.note);break;
+    case "reopened":txt=`${nm} 認為未完成 · 退回受案`;extra=esc(x.reason);cls="reason";break;
+    case "closed":txt=`${nm} 結案（${x.reso?RESO[x.reso].l:"完成"}）`;if(x.reason)extra=esc(x.reason);break;
+    case "withdrawn":txt=`${nm} 撤回工單`;break;
+    case "transferred":txt=`${nm} 轉單${x.fromDept?` ${x.fromDept} →`:"至"} <b>${x.toDept}</b>`;if(x.reason)extra=esc(x.reason);cls="reason";break;
+    case "collab_added":txt=`${nm} 加會辦 <b>${x.dept}</b>`;break;
+    case "priority_changed":txt=`${nm} 優先級 ${PRIOS[x.from].l} → ${PRIOS[x.to].l}`;break;
+    case "edited":{txt=`${nm} 編輯工單`;const parts=[];
+      (x.fields||[]).forEach(f=>parts.push(`<b>${esc(f.label)}</b> ${esc(f.from)} → ${esc(f.to)}`));
+      if((x.content||[]).length){const lk=reg(()=>showEditContent(x.content));parts.push(`<button class="linklike" onclick="${lk}">${ic("search",12)}查看提單內容修改</button>`);}
+      extra=parts.length?parts.join("　·　"):"內容微調";break;}
+    default:txt=`${nm} 留言`;if(x.text)extra=esc(x.text);
+  }
+  const body=extra?`<div class="tl-comment ${cls}">${extra}</div>`:"";
+  const atts=(x.atts&&x.atts.length)?`<div class="tl-atts">${x.atts.map(a=>attHTML(a,true)).join("")}</div>`:"";
+  return `<div class="tl-item"><div class="tl-dot">${ic(EVENT[e.t]||"send",16)}</div>
+    <div class="tl-body"><div class="h">${txt}</div><div class="tm">${fmt(e.at)} · ${rel(e.at)}</div>${body}${atts}</div></div>`;
+}
+
+function viewNew(){
+  const editing=!!state.editingId;
+  const tv=k=>(draft["_"+k]||"");
+  if(!editing)ensureDepts();
+  return `
+  <a href="#/${editing?"t/"+state.editingId:"tickets"}" class="btn btn-ghost btn-sm" style="margin-bottom:16px">${ic("arrowL",16)}${editing?"返回工單":"返回列表"}</a>
+  <div class="pagehead"><div><div class="k">${editing?"編輯":"新增"}</div><h2>${editing?"編輯工單":"新增工單"}</h2>
+    <p>${editing?"受理前可修改內容":"固定欄位 · 類別自動派受案部門 · 送出後依優先級套處理期限"}</p></div></div>
+  ${draft.refNo?`<div class="refban" style="max-width:680px;margin-bottom:14px">${ic("copy",15)}引用自工單 ${draft.refNo} · 內容已帶入，可修改</div>`:""}
+  ${!editing?`<div class="card form-card" style="margin-bottom:18px"><div class="field" style="padding:16px 24px">
+    <button type="button" class="btn btn-ghost" onclick="toggleTpl()">${ic("draft",15)}套用常用範本（選填）　${state.tplOpen?"▲":"▼"}</button>
+    ${state.tplOpen?`<div class="tpls" style="margin-top:12px">${TEMPLATES.map(tp=>`<div class="tpl" onclick="useTpl('${tp.id}')"><div class="nm">${ic("draft",14)}${tp.name}</div><div class="mt">${CATS[tp.cat].l} · ${PRIOS[tp.prio].l}優先</div></div>`).join("")}</div>`:""}
+  </div></div>`:""}
+  <div class="card form-card">
+    <div class="field"><label>工單標題<span class="req">*</span></label>
+      <input id="f-title" placeholder="一句話描述問題" value="${esc(tv("title"))}"></div>
+    <div class="field-2" style="padding:0 24px 0">
+      <div class="field" style="padding:0 0 18px"><label>類別<span class="req">*</span></label>
+        <select id="f-cat" onchange="onCatChange(this.value)">${Object.entries(CATS).map(([k,v])=>`<option value="${k}" ${draft.cat===k?"selected":""}>${v.l}</option>`).join("")}</select>
+        <div class="route-note" id="routenote">${routeNote(draft.cat)}</div></div>
+      <div class="field" style="padding:0 0 18px"><label>申請部門</label>
+        <div class="readonly-field">${ic("building",15)}${draft._dept||state.user.dept}<span class="ro-tag">依登入身分</span></div></div>
+    </div>
+    ${!editing?`<div class="field"><label>受案部門（可多選 · 各自負責）<span class="req">*</span></label>
+      <div class="dept-pick">${deptPickHTML()}</div>
+      <div class="hint">類別預設帶入受案部門；跨部門需求可多選，各部門各自指定收件對象、各自負責、全部完成才結案。</div></div>
+    <div id="recip-list">${recipBlocks()}</div>`:""}
+    <div class="field"><label>優先級<span class="req">*</span></label>
+      <div class="pri-pick" id="pripick">${Object.entries(PRIOS).map(([k,v])=>`<button type="button" class="pri-opt ${draft.prio===k?"sel":""}" onclick="pickPrio('${k}')"><span style="color:${v.c}">●</span> ${v.l}<div style="font-size:10.5px;color:var(--ink-3);font-weight:500;margin-top:2px">${v.h} 小時內</div></button>`).join("")}</div></div>
+    <div class="field"><label>問題描述<span class="req">*</span></label>
+      <textarea id="f-desc" placeholder="描述問題細節、影響範圍、已嘗試的做法…">${esc(tv("desc"))}</textarea></div>
+    <div class="field"><label>附件（選填）</label>
+      <div class="dropzone" onclick="document.getElementById('f-file').click()">${ic("upload",24)}<div class="t">點此選擇圖片 / 文件</div><div class="s">JPG / PNG / PDF / Word / Excel · 可多選</div></div>
+      <input type="file" id="f-file" multiple style="display:none" onchange="onPickFiles(this)">
+      <div class="filelist" id="filelist">${draft.files.map(fileItemHTML).join("")}</div>
+      <div class="hint">${ic("attach",12)} 測試階段：檔案僅本機預覽，尚未接檔案儲存。</div></div>
+    <div class="form-foot">
+      <a href="#/${editing?"t/"+state.editingId:"tickets"}" class="btn btn-ghost">取消</a>
+      <button class="btn btn-primary" onclick="submitTicket()">${ic("send",16)}${editing?"儲存修改":"送出工單"}</button>
+    </div>
+  </div>`;
+}
+function routeNote(cat){const c=CATS[cat];return `${ic("forward",13)} 自動派 <b>${c.dept}</b>${c.approve?` · <b>此類別需主管簽核</b>`:""}`}
+function defMgr(dept){const m=Object.values(USERS).find(u=>u.role==="manager"&&u.dept===dept);return m?m.id:null}
+function recipientOptions2(dept,sel){
+  const mgr=Object.values(USERS).find(u=>u.role==="manager"&&u.dept===dept);
+  const handlers=Object.values(USERS).filter(u=>u.role==="handler"&&u.dept===dept);
+  let o="";if(mgr)o+=`<option value="${mgr.id}" ${(sel===mgr.id||!sel)?"selected":""}>部門主管 — ${mgr.name}</option>`;
+  handlers.forEach(h=>o+=`<option value="${h.id}" ${sel===h.id?"selected":""}>${h.name}（處理人）</option>`);
+  return o;}
+function ensureDepts(){if(!draft.depts||!draft.depts.length)draft.depts=[CATS[draft.cat].dept];draft.recips=draft.recips||{};draft.depts.forEach(d=>{if(!draft.recips[d])draft.recips[d]=defMgr(d)})}
+function deptPickHTML(){return DEPTS.map(d=>`<label class="dept-opt ${draft.depts.includes(d)?"on":""}"><input type="checkbox" value="${d}" ${draft.depts.includes(d)?"checked":""} onchange="toggleDept('${d}',this.checked)"><span>${d}</span></label>`).join("")}
+function recipBlocks(){ensureDepts();return draft.depts.map(d=>`<div class="field" style="padding-top:0"><label>${ic("building",13)} ${d} · 收件對象<span class="req">*</span></label>
+  <select onchange="setRecip('${d}',this.value)">${recipientOptions2(d,draft.recips[d])}</select></div>`).join("")}
+function toggleDept(d,on){draft.depts=draft.depts||[];if(on){if(!draft.depts.includes(d))draft.depts.push(d)}else{if(draft.depts.length<=1){toast("至少需一個受案部門","warn");}else{draft.depts=draft.depts.filter(x=>x!==d);delete draft.recips[d]}}ensureDepts();const dp=document.querySelector(".dept-pick");if(dp)dp.innerHTML=deptPickHTML();const rl=document.getElementById("recip-list");if(rl)rl.innerHTML=recipBlocks()}
+function setRecip(d,uid){draft.recips[d]=uid}
+
+/* form helpers */
+function fmtSize(b){return b<1024?b+" B":b<1048576?(b/1024).toFixed(0)+" KB":(b/1048576).toFixed(1)+" MB"}
+function fileItemHTML(f,i){return `<div class="fileitem"><div class="thumb">${(f.data||f.url)&&f.isImg?`<img src="${esc(f.data||f.url)}">`:ic(f.isImg?"image":"file",18)}</div>
+  <div class="meta"><div class="nm">${esc(f.name)}</div><div class="sz">${f.size}</div></div>
+  <button class="rm" onclick="removeFile(${i})" title="移除">${ic("xCircle",18)}</button></div>`}
+function onPickFiles(input){EHub.readFiles(input.files,function(arr){arr.forEach(f=>draft.files.push(f));document.getElementById("filelist").innerHTML=draft.files.map(fileItemHTML).join("")});input.value=""}
+function removeFile(i){draft.files.splice(i,1);document.getElementById("filelist").innerHTML=draft.files.map(fileItemHTML).join("")}
+function onCmtFiles(input){EHub.readFiles(input.files,function(arr){arr.forEach(f=>cmtFiles.push(f));const c=document.getElementById("cmtcount");if(c)c.textContent=cmtFiles.length+" 個檔案待送（測試）"});input.value=""}
+function pickPrio(k){draft.prio=k;document.querySelectorAll("#pripick .pri-opt").forEach((b,i)=>b.classList.toggle("sel",Object.keys(PRIOS)[i]===k))}
+function onCatChange(v){draft.cat=v;draft.depts=[CATS[v].dept];draft.recips={};ensureDepts();const n=document.getElementById("routenote");if(n)n.innerHTML=routeNote(v);const dp=document.querySelector(".dept-pick");if(dp)dp.innerHTML=deptPickHTML();const rl=document.getElementById("recip-list");if(rl)rl.innerHTML=recipBlocks()}
+function useTpl(id){const tp=TEMPLATES.find(t=>t.id===id);draft.cat=tp.cat;draft.prio=tp.prio;draft._title=tp.title;draft._desc=tp.desc;state.tplOpen=false;render();toast("已套用範本","draft")}
+function citeTicket(id){const t=T(id);draft={prio:t.prio,cat:t.cat,files:[],refNo:t.no,recipient:"",depts:[],recips:{},_title:"",_desc:"（引用 "+t.no+"）\n"+t.desc};state.editingId=null;go("#/new");toast("已引用，內容帶入新單","copy")}
+function submitTicket(){
+  const title=document.getElementById("f-title").value.trim();
+  const desc=document.getElementById("f-desc").value.trim();
+  draft.cat=document.getElementById("f-cat").value;
+  const dept=draft._dept||state.user.dept;
+  if(!title){toast("請填寫工單標題","warn");return}
+  if(!desc){toast("請填寫問題描述","warn");return}
+  if(state.editingId){const t=T(state.editingId);
+    const fieldCh=[],contentCh=[];
+    if(t.title!==title)contentCh.push({label:"標題",from:t.title,to:title});
+    if(t.desc!==desc)contentCh.push({label:"描述",from:t.desc,to:desc});
+    if(t.cat!==draft.cat)fieldCh.push({label:"類別",from:CATS[t.cat].l,to:CATS[draft.cat].l});
+    if(t.prio!==draft.prio)fieldCh.push({label:"優先級",from:PRIOS[t.prio].l,to:PRIOS[draft.prio].l});
+    if(t.reqDept!==dept)fieldCh.push({label:"申請部門",from:t.reqDept,to:dept});
+    const oN=(t.attachments||[]).length,nN=draft.files.length;if(nN!==oN)fieldCh.push({label:"附件",from:oN+" 個",to:nN+" 個"});
+    t.title=title;t.desc=desc;t.cat=draft.cat;t.prio=draft.prio;t.reqDept=dept;t.attachments=draft.files.slice();t.updated=now();
+    ev(t,"edited",{fields:fieldCh,content:contentCh});
+    const summ=[...fieldCh,...contentCh].map(c=>c.label);
+    t.tracks.forEach(k=>notify(k.asgId||mgrOf(k.dept),`提單人編輯了工單（${t.no}）：${summ.length?summ.join("、"):"內容"}`,t.id));
+    const eid=state.editingId;state.editingId=null;draft={prio:"mid",cat:"IT",files:[],refNo:null,recipient:"",depts:[],recips:{}};toast("已儲存修改");go("#/t/"+eid);return}
+  const c=CATS[draft.cat], approve=c.approve, id="n"+now();
+  ensureDepts();
+  if(!draft.depts.length){toast("請選至少一個受案部門","warn");return}
+  const d=new Date();const p=n=>String(n).padStart(2,"0");
+  const tracks=draft.depts.map(dep=>({dept:dep,asgId:draft.recips[dep]||defMgr(dep),st:"assigned",sla:due(draft.prio,now()),appr:{st:"none"}}));
+  const t={id,no:`TK-${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${String(60+TICKETS.length).padStart(3,"0")}`,
+    title,desc,cat:draft.cat,prio:draft.prio,resolution:null,
+    reqId:state.user.id,reqDept:dept,collab:[],refNo:draft.refNo,
+    sharedAppr:{st:approve?"pending":"none",by:null,opinion:""},
+    attachments:draft.files.slice(),created:now(),updated:now(),tracks,
+    events:[{t:"created",by:state.user.id,at:now(),x:{depts:draft.depts.slice()}}]};
+  if(approve)t.events.push({t:"approval_requested",by:state.user.id,at:now(),x:{auto:true,shared:true}});
+  rollup(t);
+  if(approve)notify(mgrOf(dept),`${USERS[state.user.id].name} 送出簽核：${title}`,id);
+  else tracks.forEach(k=>notify(k.asgId,`指派給你的新工單（${t.no}）：${title}`,id));
+  TICKETS.unshift(t);
+  const summary=t.tracks.map(k=>k.dept).join("、");
+  draft={prio:"mid",cat:"IT",files:[],refNo:null,recipient:"",depts:[],recips:{}};
+  toast(approve?"已送出 · 待主管簽核":"工單已建立 · 受案 "+summary);
+  go("#/t/"+id);
+}
+
+/* ====================== Notifications ====================== */
+function viewNotif(){
+  const list=NOTIFS.filter(n=>n.to===state.user.id).sort((a,b)=>b.at-a.at);
+  const un=list.filter(n=>!n.read).length;
+  return `<div class="notif-panel" onclick="event.stopPropagation()">
+    <div class="notif-h">${ic("bell",16)}通知 ${un?`<span style="color:var(--danger)">(${un})</span>`:""}
+      ${list.length?`<span class="clr" onclick="markAllRead()">全部已讀</span>`:""}</div>
+    ${list.length?list.map(n=>`<div class="notif ${n.read?"":"unread"}" onclick="openNotif('${n.tid}')">
+      ${n.read?"":'<div class="dotn"></div>'}<div style="flex:1"><div class="tx">${esc(n.text)}</div><div class="tm">${rel(n.at)}</div></div></div>`).join("")
+    :`<div class="empty" style="padding:30px">${ic("bell",30)}<div>沒有通知</div></div>`}
+  </div>`;
+}
+
+/* ====================== Router / shell ====================== */
+function setTab(i){state.tab=i;state.quick=null;render()}
+function setQuick(k,l){state.quick={kind:k,label:l};go("#/tickets")}
+function clearQuick(){state.quick=null;render()}
+function setDashRange(v){state.dashRange=v;render()}
+function toggleTpl(){state.tplOpen=!state.tplOpen;render()}
+function setFilter(k,v){state.filters[k]=v;render()}
+function clearFilters(){state.filters={q:"",status:"",prio:"",cat:""};render()}
+function go(h){location.hash=h}
+function switchRole(id){state.user=USERS[id];state.tab=0;state.filters={q:"",status:"",prio:"",cat:""};state.notifOpen=false;if(state.route.startsWith("#/t/"))go("#/tickets");else render();toast("切換為 "+USERS[id].name+"（"+userRoleLabel(USERS[id])+"）","user")}
+function login(){state.user=USERS[document.getElementById("login-role").value];go("#/dashboard")}
+function logout(){try{localStorage.removeItem("ehub_session");localStorage.removeItem("ehub_role")}catch(e){}location.href="../index.html"}
+function toggleSidebar(){state.sidebarOpen=!state.sidebarOpen;render()}
+function toggleNotif(){state.notifOpen=!state.notifOpen;render()}
+function markAllRead(){NOTIFS.forEach(n=>{if(n.to===state.user.id)n.read=true});render()}
+function openNotif(tid){NOTIFS.forEach(n=>{if(n.to===state.user.id&&n.tid===tid)n.read=true});state.notifOpen=false;go("#/t/"+tid)}
+
+function shell(content,active,title){
+  const u=state.user;
+  const cnt=(k,hot)=>k?`<span class="count ${hot?"hot":""}">${k}</span>`:"";
+  const pa=pendingApprovalCount(), todo=myTodoCount(), unread=unreadCount();
+  return `<div class="layout">
+    <aside class="sidebar ${state.sidebarOpen?"open":""}">
+      <div class="brand"><div class="logo">${ic("ticket",22)}</div><div><b>工單通</b><span class="en">TICKETHUB</span></div></div>
+      <nav class="nav">
+        <div class="lbl">主選單</div>
+        <a href="#/dashboard" class="${active==="dash"?"active":""}">${ic("dashboard",19)}儀表板</a>
+        <a href="#/tickets" class="${active==="tickets"?"active":""}">${ic("ticket",19)}工單列表${cnt(todo)}</a>
+        <a href="#/new" class="${active==="new"?"active":""}">${ic("add",19)}新增工單</a>
+        ${(u.role==="manager"||u.role==="admin")?`<a href="#/approvals" class="${active==="appr"?"active":""}">${ic("shield",19)}待我簽核${cnt(pa,pa>0)}</a>`:""}
+        <div class="lbl" style="margin-top:8px">平台</div>
+        <a href="../index.html" title="回企業平台首頁">${ic("arrowL",19)}回平台首頁</a>
+      </nav>
+      <div class="userbox">
+        <div class="ucard"><div class="av">${u.name[0]}</div>
+          <div style="flex:1;min-width:0"><div class="nm">${u.name}</div><div class="rl">${userRoleLabel(u)} · ${u.dept}</div></div>
+          <button class="logout" onclick="logout()" title="登出">${ic("logout",18)}</button></div>
+        <div class="role-pick" style="margin-top:10px">切換身分（測試用）</div>
+        <select class="demo-sw" onchange="switchRole(this.value)">${DEMO_ROLES.map(id=>`<option value="${id}" ${u.id===id?"selected":""}>${userRoleLabel(USERS[id])} — ${USERS[id].name}（${USERS[id].dept}）</option>`).join("")}</select>
+      </div>
+    </aside>
+    <div class="scrim ${state.sidebarOpen?"show":""}" onclick="toggleSidebar()"></div>
+    <div class="main">
+      <header class="topbar">
+        <button class="menu-toggle" onclick="toggleSidebar()">${ic("menu",20)}</button>
+        <h1>${title}</h1>
+        <div class="search">${ic("search",16)}<input placeholder="搜尋標題 / 編號…" value="${esc(state.filters.q)}" oninput="state.filters.q=this.value" onkeydown="if(event.key==='Enter'){go('#/tickets');render()}"></div>
+        <a href="../index.html" class="iconbtn" title="回企業平台首頁">${ic("home",19)}</a>
+        <button class="iconbtn" title="通知" onclick="event.stopPropagation();toggleNotif()">${ic("bell",19)}${unread?`<span class="badge-n">${unread}</span>`:""}</button>
+        ${state.notifOpen?viewNotif():""}
+      </header>
+      <main class="content">${content}</main>
+    </div>
+  </div>`;
+}
+
+function render(){
+  const app=document.getElementById("app");
+  _fnreg={};_fnid=0;saveState();syncTicketBadge();
+  if(!state.user){
+    app.innerHTML=`<div class="login"><div class="login-card">
+      <div class="logo">${ic("ticket",28)}</div><h1>工單通</h1><div class="en">TICKETHUB</div>
+      <p class="sub">企業跨部門工單 / 申請追蹤系統</p>
+      <div class="login-field"><label>帳號</label><input value="demo@company.com" readonly></div>
+      <div class="login-field"><label>以哪個角色登入（測試）</label>
+        <select id="login-role">${DEMO_ROLES.map(id=>`<option value="${id}">${userRoleLabel(USERS[id])} — ${USERS[id].name}（${USERS[id].dept}）</option>`).join("")}</select></div>
+      <button class="btn btn-primary" onclick="login()">${ic("logout",17)}進入系統</button>
+      <div class="login-note">測試階段 · 使用測試資料，尚未接資料庫。<br>切換角色可看申請人 / 處理人 / 主管 / 管理員不同流程。</div>
+      <a href="../index.html" style="display:inline-flex;align-items:center;gap:5px;margin-top:14px;font-size:12.5px;color:var(--accent-ink);font-weight:600">${ic("arrowL",15)}回企業平台首頁</a>
+    </div></div>`;
+    return;
+  }
+  const h=state.route;let body,active,title;
+  if(h.startsWith("#/t/")){body=viewDetail(h.slice(4));active="tickets";title="工單詳情"}
+  else if(h.startsWith("#/approvals")){body=viewTickets(true);active="appr";title="待我簽核"}
+  else if(h.startsWith("#/tickets")){body=viewTickets(false);active="tickets";title="工單列表"}
+  else if(h.startsWith("#/new")){body=viewNew();active="new";title=state.editingId?"編輯工單":"新增工單"}
+  else {body=viewDashboard();active="dash";title="儀表板"}
+  app.innerHTML=shell(body,active,title);
+}
+
+window.addEventListener("hashchange",()=>{state.route=location.hash||"#/dashboard";state.sidebarOpen=false;state.notifOpen=false;if(!state.route.startsWith("#/new"))state.editingId=null;if(!state.route.startsWith("#/tickets"))state.quick=null;render()});
+document.addEventListener("click",()=>{if(state.notifOpen){state.notifOpen=false;render()}});
+/* 讀首頁登入 session：自動帶身分、跳過工單通登入畫面（名字對應測試使用者，否則依角色）。switchRole 仍可在側欄測試切換 */
+function ehubSession(){try{return JSON.parse(localStorage.getItem("ehub_session")||"null")}catch(e){return null}}
+(function(){const s=ehubSession();if(s)state.user=Object.values(USERS).find(x=>x.name===s.name)||USERS[s.role==="admin"?"u4":"u1"];})();
+state.route=location.hash||"#/dashboard";
+render();
+setInterval(()=>{if(!state.user||state.route.startsWith("#/new")||state.notifOpen)return;const ae=document.activeElement;if(ae&&/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName))return;render()},30000);
+</script>
+</body>
+</html>

@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>簽呈通 e-Signoff — 前端 Demo（MVP）</title>
+<style>
+  :root{
+    /* 淺色科技版：冷調淺底(非純白) + 工具主色=靛紫 + 藍配色 + 微發光/網點 */
+    --bg:#EEF1F7; --surface:#FFFFFF; --surface-2:#F4F6FB;
+    --ink:#1B2230; --ink-2:#5C6577; --ink-3:#8A93A6;
+    --line:#E2E6EF; --line-2:#EDEFF5;
+    --accent:#6D54C8; --accent-ink:#5840A8; --accent-soft:#ECE9FB;
+    --s-open:#2563A8;     --s-open-bg:#E5EFF8;
+    --s-progress:#B7791F; --s-progress-bg:#FBF1DD;
+    --s-appr:#5B4B8A;     --s-appr-bg:#ECE9F6;
+    --s-need:#C2603B;     --s-need-bg:#FAE8DF;
+    --s-resolved:#2F8F5B; --s-resolved-bg:#E4F1E9;
+    --s-closed:#5C6B82;   --s-closed-bg:#EBEEF3;
+    --danger:#C0392B;     --danger-bg:#F8E7E4;
+    --r:12px; --r-sm:8px; --r-lg:16px;
+    --sh-1:0 1px 2px rgba(27,34,48,.05);
+    --sh-2:0 14px 34px rgba(40,55,90,.13), 0 2px 8px rgba(40,55,90,.07);
+    --glow:0 8px 22px rgba(109,84,200,.30);
+    --gridc:rgba(40,55,90,.05);
+    --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:"Microsoft JhengHei","PingFang TC",-apple-system,"Segoe UI",system-ui,sans-serif;
+    background:
+      radial-gradient(var(--gridc) 1px, transparent 1px) 0 0/22px 22px,
+      radial-gradient(680px 440px at 90% -8%, rgba(109,84,200,.08), transparent 60%),
+      radial-gradient(620px 420px at -6% 4%, rgba(37,99,168,.06), transparent 62%),
+      var(--bg);
+    background-attachment:fixed;
+    background-attachment:fixed;color:var(--ink);font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased}
+  input::placeholder,textarea::placeholder{color:var(--ink-3)}
+  .mono{font-family:var(--mono);text-transform:uppercase;letter-spacing:.14em;font-size:11px}
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+  a{color:inherit;text-decoration:none} svg{display:block}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+  .layout{display:grid;grid-template-columns:248px 1fr;height:100vh;overflow:hidden}
+
+  .sidebar{background:var(--surface);border-right:1px solid var(--line);display:flex;flex-direction:column;height:100%;overflow-y:auto}
+  .brand{display:flex;align-items:center;gap:11px;padding:20px 20px 18px;border-bottom:1px solid var(--line-2)}
+  .brand .logo{width:38px;height:38px;border-radius:10px;background:var(--accent);color:#fff;display:grid;place-items:center;flex:none;box-shadow:var(--glow)}
+  .brand b{font-size:16px} .brand .en{display:block;font-size:10px;color:var(--ink-3);letter-spacing:.18em;font-family:var(--mono)}
+  .nav{padding:14px 12px;display:flex;flex-direction:column;gap:3px;flex:1}
+  .nav .lbl{font-family:var(--mono);text-transform:uppercase;letter-spacing:.16em;font-size:10px;color:var(--ink-3);padding:12px 12px 6px}
+  .nav a{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:var(--r-sm);color:var(--ink-2);font-weight:500;transition:.15s}
+  .nav a:hover{background:var(--surface-2);color:var(--ink)} .nav a.active{background:var(--accent-soft);color:var(--accent-ink)}
+  .nav a .ic{color:currentColor;flex:none}
+  .nav a .count{margin-left:auto;font-size:12px;background:var(--surface-2);color:var(--ink-2);padding:1px 8px;border-radius:999px;font-weight:600}
+  .nav a.active .count{background:var(--surface);color:var(--accent-ink)} .nav a .count.hot{background:var(--danger);color:#fff}
+  .userbox{border-top:1px solid var(--line-2);padding:14px 12px}
+  .ucard{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--r-sm);background:var(--surface-2)}
+  .ucard .av{width:34px;height:34px;border-radius:50%;background:var(--accent-soft);color:var(--accent-ink);display:grid;place-items:center;font-weight:700;flex:none;font-size:14px}
+  .ucard .nm{font-weight:600;font-size:13px;line-height:1.2} .ucard .rl{font-size:11px;color:var(--ink-2)}
+  .ucard .logout{margin-left:auto;color:var(--ink-3);padding:4px} .ucard .logout:hover{color:var(--danger)}
+  .role-pick{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;color:var(--ink-3);padding:4px 8px 2px;text-transform:uppercase}
+  .demo-sw{width:100%;font-family:inherit;font-size:12px;color:var(--ink);border:1px solid var(--line);background:var(--surface-2);border-radius:6px;padding:6px 8px;margin-top:6px;cursor:pointer}
+
+  .main{display:flex;flex-direction:column;min-width:0;height:100vh;overflow:hidden}
+  .topbar{height:62px;background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 28px;flex:none;z-index:20;position:relative}
+  .topbar h1{font-size:17px;font-weight:700}
+  .search{margin-left:auto;display:flex;align-items:center;gap:8px;background:none;border:none;border-bottom:1.5px solid var(--line);border-radius:0;padding:6px 2px;width:240px;color:var(--ink-3);transition:border-color .15s}
+  .search:focus-within{border-bottom-color:var(--accent)}
+  .search input{border:none;background:none;outline:none;font-family:inherit;font-size:13px;color:var(--ink);width:100%}
+  .iconbtn{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;color:var(--ink-2);position:relative}
+  .iconbtn:hover{background:var(--surface-2);color:var(--ink)}
+  .iconbtn .badge-n{position:absolute;top:4px;right:4px;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:var(--danger);color:#fff;font-size:10px;font-weight:700;display:grid;place-items:center;border:2px solid var(--surface)}
+  .content{padding:26px 28px 48px;max-width:1180px;width:100%;margin:0 auto;flex:1;overflow-y:auto}
+  .pagehead{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:22px}
+  .pagehead .k{font-family:var(--mono);color:var(--accent);font-size:11px;letter-spacing:.18em;margin-bottom:6px}
+  .pagehead h2{font-size:26px;font-weight:800;letter-spacing:-.01em;line-height:1.1}
+  .pagehead p{color:var(--ink-2);margin-top:5px;font-size:13.5px}
+
+  .btn{display:inline-flex;align-items:center;gap:7px;padding:9px 16px;border-radius:var(--r-sm);font-weight:600;font-size:13.5px;transition:.15s;border:1px solid transparent}
+  .btn-primary{background:var(--accent);color:#fff;box-shadow:0 6px 18px rgba(109,84,200,.32)} .btn-primary:hover{background:#5840A8;box-shadow:0 8px 22px rgba(109,84,200,.45)}
+  .btn-ghost{background:var(--surface-2);color:var(--ink);border-color:var(--line)} .btn-ghost:hover{border-color:var(--ink-3)}
+  .btn-danger,.btn.danger{background:rgba(192,57,43,.14);color:#d9534f;border:1px solid rgba(192,57,43,.34)} .btn-danger:hover,.btn.danger:hover{background:rgba(192,57,43,.24)}
+  .btn-sm{padding:6px 12px;font-size:12.5px} .btn:disabled{opacity:.45;cursor:not-allowed}
+
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh-1)}
+  .card-h{padding:16px 20px;border-bottom:1px solid var(--line-2);display:flex;align-items:center;gap:10px}
+  .card-h h3{font-size:14.5px;font-weight:700} .card-h .mono{color:var(--ink-3);margin-left:auto}
+  .tabs{display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .tab{padding:9px 15px;font-weight:600;font-size:13.5px;color:var(--ink-2);border-bottom:2px solid transparent;margin-bottom:-1px;display:flex;align-items:center;gap:7px}
+  .tab:hover{color:var(--ink)} .tab.active{color:var(--accent-ink);border-bottom-color:var(--accent)}
+  .tab .count{font-size:11.5px;background:var(--surface-2);padding:0 7px;border-radius:999px;color:var(--ink-2)} .tab.active .count{background:var(--accent-soft);color:var(--accent-ink)}
+  .filters{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+  .selwrap{position:relative}
+  select.filter{appearance:none;font-family:inherit;font-size:13px;color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r-sm);padding:8px 30px 8px 13px;cursor:pointer}
+  .selwrap::after{content:"";position:absolute;right:12px;top:50%;width:7px;height:7px;border-right:2px solid var(--ink-3);border-bottom:2px solid var(--ink-3);transform:translateY(-70%) rotate(45deg);pointer-events:none}
+
+  .ttable{width:100%;border-collapse:collapse}
+  .ttable thead th{font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--ink-3);text-align:left;padding:11px 16px;border-bottom:1px solid var(--line);font-weight:600;background:var(--surface-2)}
+  .ttable tbody tr{border-bottom:1px solid var(--line-2);transition:.12s;cursor:pointer} .ttable tbody tr:last-child{border-bottom:none}
+  .ttable tbody tr:hover{background:var(--surface-2)} .ttable td{padding:12px 16px;vertical-align:middle}
+  .row-me td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
+  .t-no{font-family:var(--mono);font-size:11px;color:var(--ink-3);letter-spacing:.05em}
+  .t-title{font-weight:600;color:var(--ink);font-size:13.5px} .t-sub{font-size:11.5px;color:var(--ink-3);margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .who{display:flex;align-items:center;gap:8px}
+  .who .av{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:11.5px;flex:none}
+  .who .nm{font-size:12.5px;font-weight:500} .who .dp{font-size:11px;color:var(--ink-3)}
+  .badge{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+  .badge .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+  .ball{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;padding:2px 9px;border-radius:999px;background:var(--surface-2);color:var(--ink-2);white-space:nowrap}
+  .ball.me{background:var(--accent-soft);color:var(--accent-ink)}
+  .prog{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--ink-2)}
+  .prog .pbar{width:60px;height:6px;border-radius:999px;background:var(--surface-2);overflow:hidden}
+  .prog .pfill{height:100%;background:var(--s-resolved);border-radius:999px}
+  .empty{padding:54px 20px;text-align:center;color:var(--ink-3)} .empty .ic{margin:0 auto 12px;opacity:.5}
+
+  .detail-grid{display:grid;grid-template-columns:1fr 330px;gap:20px;align-items:start}
+  .d-head{padding:22px 24px;border-bottom:1px solid var(--line-2)}
+  .d-head .top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+  .d-head h2{font-size:21px;font-weight:800;line-height:1.25}
+  .d-meta{display:flex;gap:22px;flex-wrap:wrap;margin-top:16px}
+  .d-meta .it .k{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;color:var(--ink-3);margin-bottom:4px}
+  .d-body{padding:20px 24px}
+  .d-body .sec-l{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-3);margin-bottom:9px;margin-top:18px}
+  .d-body .sec-l:first-child{margin-top:0}
+  .d-desc{color:var(--ink);line-height:1.7;font-size:14px;background:var(--surface-2);border:1px solid var(--line-2);border-radius:var(--r-sm);padding:15px 17px;white-space:pre-wrap}
+  /* 會簽進度 */
+  .signers{display:flex;flex-direction:column;gap:8px}
+  .signer{display:flex;align-items:center;gap:11px;padding:10px 13px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface-2)}
+  .signer.me{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .signer .av{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:12.5px;flex:none}
+  .signer .nm{font-weight:600;font-size:13px} .signer .role-tag{font-size:11px;color:var(--ink-3)}
+  .signer .st{margin-left:auto;font-size:12px;font-weight:700;display:inline-flex;align-items:center;gap:5px}
+  .chips{display:flex;flex-wrap:wrap;gap:7px}
+  .chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--accent-soft);color:var(--accent-ink)}
+
+  .timeline{padding:6px 24px 22px;position:relative}
+  .tl-item{display:grid;grid-template-columns:34px 1fr;gap:13px;padding-bottom:18px;position:relative}
+  .tl-item:not(:last-child)::before{content:"";position:absolute;left:16px;top:32px;bottom:0;width:2px;background:var(--line-2)}
+  .tl-dot{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;flex:none;z-index:1;background:var(--surface-2);border:1px solid var(--line)}
+  .tl-body .h{font-size:13px}.tl-body .h b{font-weight:700} .tl-body .tm{font-size:11px;color:var(--ink-3);margin-top:2px}
+  .tl-comment{margin-top:7px;background:var(--surface-2);border:1px solid var(--line-2);border-radius:8px;border-top-left-radius:2px;padding:9px 13px;font-size:13px;line-height:1.6;white-space:pre-wrap}
+  .tl-comment.suggest{border-left:3px solid var(--s-progress)} .tl-comment.reason{border-left:3px solid var(--s-need)}
+  .tl-atts{display:flex;flex-wrap:wrap;gap:7px;margin-top:7px}
+  .commentbox{padding:14px 24px;border-top:1px solid var(--line-2)}
+  .commentbox .row{display:flex;gap:10px}
+  .commentbox textarea{flex:1;border:1px solid var(--line);border-radius:var(--r-sm);padding:10px 12px;font-family:inherit;font-size:13.5px;resize:vertical;min-height:42px;outline:none;background:var(--surface-2);color:var(--ink)}
+  .commentbox textarea:focus{border-color:var(--accent)}
+
+  .side .card-h{padding:14px 18px}
+  .side-sec{padding:16px 18px;border-bottom:1px solid var(--line-2)} .side-sec:last-child{border-bottom:none}
+  .side-sec .k{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;color:var(--ink-3);margin-bottom:10px}
+  .actcol{display:flex;flex-direction:column;gap:8px} .actcol .btn{justify-content:flex-start;width:100%}
+
+  .form-card{max-width:680px}
+  .field{padding:0 24px 18px} .field:first-of-type{padding-top:22px}
+  .field label{display:block;font-weight:600;font-size:13px;margin-bottom:7px} .field label .req{color:var(--danger);margin-left:3px}
+  .field input,.field textarea,.field select{width:100%;font-family:inherit;font-size:14px;color:var(--ink);border:1px solid var(--line);border-radius:var(--r-sm);padding:10px 13px;outline:none;background:var(--surface-2)}
+  .field input:focus,.field textarea:focus,.field select:focus{border-color:var(--accent)}
+  .field textarea{resize:vertical;min-height:96px;line-height:1.6} .field .hint{font-size:11.5px;color:var(--ink-3);margin-top:5px}
+  .readonly-field{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--ink-2);background:var(--surface-2);border:1px solid var(--line-2);border-radius:var(--r-sm);padding:10px 13px}
+  .readonly-field .ro-tag{margin-left:auto;font-size:10.5px;font-weight:600;color:var(--ink-3);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:1px 8px}
+  .picker{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .pk{display:flex;align-items:center;gap:9px;border:1px solid var(--line);border-radius:var(--r-sm);padding:9px 11px;cursor:pointer;transition:.12s;background:var(--surface-2)}
+  .pk:hover{border-color:var(--ink-3)} .pk.on{border-color:var(--accent);background:var(--accent-soft)}
+  .pk input{width:auto;flex:none} .pk .nm{font-weight:600;font-size:13px} .pk .dp{font-size:11px;color:var(--ink-3)}
+  .form-foot{padding:18px 24px;border-top:1px solid var(--line-2);display:flex;gap:10px;justify-content:flex-end}
+  .dropzone{border:1.5px dashed var(--line);border-radius:var(--r-sm);padding:18px;text-align:center;cursor:pointer;transition:.15s;color:var(--ink-2);background:var(--surface-2)}
+  .dropzone:hover{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-ink)} .dropzone .t{font-weight:600;font-size:13px} .dropzone .s{font-size:11.5px;color:var(--ink-3);margin-top:3px}
+  .filelist{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+  .fileitem{display:flex;align-items:center;gap:11px;padding:8px 11px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface-2)}
+  .fileitem .thumb{width:38px;height:38px;border-radius:7px;overflow:hidden;flex:none;display:grid;place-items:center;background:var(--surface);color:var(--ink-2)} .fileitem .thumb img{width:100%;height:100%;object-fit:cover}
+  .fileitem .meta{flex:1;min-width:0} .fileitem .nm{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .fileitem .sz{font-size:11px;color:var(--ink-3)}
+  .fileitem .rm{color:var(--ink-3);padding:4px} .fileitem .rm:hover{color:var(--danger)}
+  .att-grid{display:flex;flex-wrap:wrap;gap:12px}
+  .att{display:flex;align-items:center;gap:10px;padding:9px 13px 9px 9px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface-2);min-width:200px}
+  .att .thumb{width:42px;height:42px;border-radius:7px;flex:none;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent-ink);overflow:hidden} .att .thumb img{width:100%;height:100%;object-fit:cover}
+  .att .nm{font-size:13px;font-weight:600;line-height:1.25} .att .sz{font-size:11px;color:var(--ink-3)} .att.mini{min-width:0;padding:5px 10px 5px 7px;gap:7px} .att.mini .thumb{width:26px;height:26px}
+
+  .modal-ov{position:fixed;inset:0;background:rgba(27,34,48,.46);z-index:200;display:grid;place-items:center;padding:20px;animation:mfade .15s ease}
+  .modal-card{width:100%;max-width:440px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--sh-2);padding:22px 22px 18px;animation:mpop .18s ease}
+  .modal-title{font-size:16px;font-weight:800;margin-bottom:6px} .modal-msg{font-size:13.5px;color:var(--ink-2);line-height:1.6;margin-bottom:14px}
+  .modal-label{display:block;font-size:12.5px;font-weight:600;color:var(--ink-2);margin:8px 0 7px}
+  .modal-input{width:100%;font-family:inherit;font-size:14px;color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r-sm);padding:10px 12px;outline:none;margin-bottom:4px}
+  .modal-input:focus{border-color:var(--accent)} textarea.modal-input{resize:vertical;min-height:74px;line-height:1.6}
+  .modal-foot{display:flex;gap:10px;justify-content:flex-end;margin-top:16px}
+  .modal-info{max-height:52vh;overflow-y:auto;margin-top:4px}
+  .diff-block{margin-bottom:16px} .diff-block:last-child{margin-bottom:0}
+  .diff-l{font-size:12px;font-weight:700;color:var(--ink-2);margin-bottom:7px}
+  .diff-row{display:flex;gap:9px;margin-bottom:7px;align-items:flex-start}
+  .diff-tag{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:5px;flex:none;margin-top:2px}
+  .diff-tag.old{background:var(--danger-bg);color:var(--danger)} .diff-tag.new{background:var(--s-resolved-bg);color:var(--s-resolved)}
+  .diff-txt{font-size:13px;line-height:1.65;white-space:pre-wrap;flex:1;background:var(--surface-2);border:1px solid var(--line-2);border-radius:6px;padding:8px 11px}
+  .linklike{color:var(--accent-ink);font-weight:600;font-size:12.5px;display:inline-flex;align-items:center;gap:4px;text-decoration:underline;text-underline-offset:2px} .linklike:hover{color:var(--accent)}
+  @keyframes mfade{from{opacity:0}to{opacity:1}} @keyframes mpop{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
+  .toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(20px);background:#16223A;color:#fff;padding:11px 20px;border-radius:999px;font-size:13.5px;font-weight:600;box-shadow:var(--sh-2);opacity:0;transition:.3s;z-index:210;display:flex;align-items:center;gap:9px;pointer-events:none}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .demo-flag{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--s-progress);background:var(--s-progress-bg);padding:2px 9px;border-radius:999px;font-weight:600}
+  .notif-panel{position:absolute;top:54px;right:18px;width:344px;max-height:64vh;overflow-y:auto;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh-2);z-index:60}
+  .notif-h{padding:13px 16px;border-bottom:1px solid var(--line-2);font-weight:700;font-size:13.5px;display:flex;align-items:center;gap:8px} .notif-h .clr{margin-left:auto;font-size:12px;color:var(--accent-ink);font-weight:600;cursor:pointer}
+  .notif{display:flex;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line-2);cursor:pointer} .notif:last-child{border-bottom:none} .notif:hover{background:var(--surface-2)} .notif.unread{background:var(--accent-soft)}
+  .notif .dotn{width:8px;height:8px;border-radius:50%;background:var(--accent);margin-top:5px;flex:none} .notif .tx{font-size:12.5px;line-height:1.45} .notif .tm{font-size:11px;color:var(--ink-3);margin-top:3px}
+
+  .login{min-height:100vh;display:grid;place-items:center;padding:24px;background:radial-gradient(1200px 600px at 70% -10%,var(--accent-soft),transparent),var(--bg)}
+  .login-card{width:100%;max-width:410px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--sh-2);padding:34px 32px;text-align:center}
+  .login-card .logo{width:54px;height:54px;border-radius:14px;background:var(--accent);color:#fff;display:grid;place-items:center;margin:0 auto 18px;box-shadow:var(--glow)}
+  .login-card h1{font-size:23px;font-weight:800} .login-card .en{font-family:var(--mono);font-size:10px;letter-spacing:.22em;color:var(--ink-3);margin-top:5px}
+  .login-card p.sub{color:var(--ink-2);font-size:13px;margin:14px 0 22px}
+  .login-field{text-align:left;margin-bottom:14px} .login-field label{font-size:12px;font-weight:600;color:var(--ink-2);display:block;margin-bottom:6px}
+  .login-field input,.login-field select{width:100%;font-family:inherit;font-size:14px;padding:11px 13px;border:1px solid var(--line);border-radius:var(--r-sm);outline:none;background:var(--surface-2);color:var(--ink)}
+  .login .btn-primary{width:100%;justify-content:center;padding:12px;margin-top:6px} .login-note{margin-top:18px;font-size:11.5px;color:var(--ink-3);line-height:1.6}
+
+  @media(max-width:920px){.layout{grid-template-columns:1fr}.sidebar{position:fixed;left:-260px;width:248px;z-index:50;transition:.25s}.sidebar.open{left:0;box-shadow:var(--sh-2)}.detail-grid,.picker{grid-template-columns:1fr}.menu-toggle{display:grid!important}.search{width:auto;flex:1;max-width:180px}}
+  .menu-toggle{display:none;width:38px;height:38px;border-radius:10px;place-items:center;color:var(--ink-2)}
+  .scrim{display:none;position:fixed;inset:0;background:rgba(27,34,48,.42);z-index:40} .scrim.show{display:block}
+</style>
+<script src="../08_共用/store.js"></script>
+<script src="../08_共用/theme.js"></script>
+</head>
+<body>
+<div id="app"></div>
+<div class="toast" id="toast"></div>
+<div id="modal"></div>
+
+<script>
+/* ===== Icons (RemixIcon) ===== */
+const P={
+  draft:"M20 2C20.5523 2 21 2.44772 21 3V6.757L19 8.757V4H5V20H19V17.242L21 15.242V21C21 21.5523 20.5523 22 20 22H4C3.44772 22 3 21.5523 3 21V3C3 2.44772 3.44772 2 4 2H20ZM21.7782 8.80761L23.1924 10.2218L15.4142 18L13.9979 17.9979L14 16.5858L21.7782 8.80761ZM13 12V14H8V12H13ZM16 8V10H8V8H16Z",
+  add:"M11 11V5H13V11H19V13H13V19H11V13H5V11H11Z",
+  search:"M18.031 16.6168L22.3137 20.8995L20.8995 22.3137L16.6168 18.031C15.0769 19.263 13.124 20 11 20C6.032 20 2 15.968 2 11C2 6.032 6.032 2 11 2C15.968 2 20 6.032 20 11C20 13.124 19.263 15.0769 18.031 16.6168ZM16.0247 15.8748C17.2475 14.6146 18 12.8956 18 11C18 7.1325 14.8675 4 11 4C7.1325 4 4 7.1325 4 11C4 14.8675 7.1325 18 11 18C12.8956 18 14.6146 17.2475 15.8748 16.0247L16.0247 15.8748Z",
+  user:"M20 22H18V20C18 18.3431 16.6569 17 15 17H9C7.34315 17 6 18.3431 6 20V22H4V20C4 17.2386 6.23858 15 9 15H15C17.7614 15 20 17.2386 20 20V22ZM12 13C8.68629 13 6 10.3137 6 7C6 3.68629 8.68629 1 12 1C15.3137 1 18 3.68629 18 7C18 10.3137 15.3137 13 12 13ZM12 11C14.2091 11 16 9.20914 16 7C16 4.79086 14.2091 3 12 3C9.79086 3 8 4.79086 8 7C8 9.20914 9.79086 11 12 11Z",
+  building:"M21 19H23V21H1V19H3V4C3 3.44772 3.44772 3 4 3H14C14.5523 3 15 3.44772 15 4V19H19V11H17V9H20C20.5523 9 21 9.44772 21 10V19ZM5 5V19H13V5H5ZM7 11H11V13H7V11ZM7 7H11V9H7V7Z",
+  time:"M12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22ZM12 20C16.4183 20 20 16.4183 20 12C20 7.58172 16.4183 4 12 4C7.58172 4 4 7.58172 4 12C4 16.4183 7.58172 20 12 20ZM13 12H17V14H11V7H13V12Z",
+  checkLn:"M9.9997 15.1709L19.1921 5.97852L20.6063 7.39273L9.9997 17.9993L3.63574 11.6354L5.04996 10.2212L9.9997 15.1709Z",
+  warn:"M12.866 3L22.392 19.5C22.6681 19.9783 22.5043 20.59 22.026 20.866C21.874 20.954 21.7016 21 21.526 21H2.474C1.9217 21 1.474 20.5523 1.474 20C1.474 19.8244 1.52 19.652 1.608 19.5L11.134 3C11.41 2.5217 12.0217 2.3579 12.5 2.634C12.6517 2.7216 12.7784 2.8483 12.866 3ZM4.2069 19H19.7931L12 5.5L4.2069 19ZM11 16H13V18H11V16ZM11 9H13V14H11V9Z",
+  close:"M11.9997 10.5865L16.9495 5.63672L18.3637 7.05093L13.4139 12.0007L18.3637 16.9504L16.9495 18.3646L11.9997 13.4149L7.04996 18.3646L5.63574 16.9504L10.5855 12.0007L5.63574 7.05093L7.04996 5.63672L11.9997 10.5865Z",
+  shield:"M12 1L20.2169 2.82598C20.6745 2.92766 21 3.33347 21 3.80217V13.7889C21 15.795 19.9974 17.6684 18.3282 18.7812L12 23L5.6718 18.7812C4.00261 17.6684 3 15.795 3 13.7889V3.80217C3 3.33347 3.32553 2.92766 3.78307 2.82598L12 1ZM12 3.04879L5 4.60434V13.7889C5 15.1263 5.6684 16.3752 6.7812 17.1171L12 20.5963L17.2188 17.1171C18.3316 16.3752 19 15.1263 19 13.7889V4.60434L12 3.04879ZM16.4524 8.22183L17.8666 9.63604L11.5026 16L7.25999 11.7574L8.67421 10.3431L11.5019 13.1709L16.4524 8.22183Z",
+  back:"M5.82843 6.99955L8.36396 9.53509L6.94975 10.9493L2 5.99955L6.94975 1.0498L8.36396 2.46402L5.82843 4.99955H13C17.4183 4.99955 21 8.58127 21 12.9996C21 17.4178 17.4183 20.9996 13 20.9996H4V18.9996H13C16.3137 18.9996 19 16.3133 19 12.9996C19 9.68584 16.3137 6.99955 13 6.99955H5.82843Z",
+  reply:"M11 20L1 12L11 4V9C16.5228 9 21 13.4772 21 19C21 19.2727 20.9891 19.5428 20.9677 19.81C19.5055 17.0364 16.6381 15.119 13.313 15.0053L13 15H10.9999L11 20ZM8.99986 13H10.9999L13.0341 13.0003L13.3814 13.0065C14.6657 13.0504 15.9053 13.3165 17.0568 13.7734C15.5898 12.0749 13.4204 11 11 11H9V8.16125L4.20156 12L8.99992 15.8387L8.99986 13Z",
+  edit:"M6.41421 15.89L16.5563 5.74785L15.1421 4.33363L5 14.4758V15.89H6.41421ZM7.24264 17.89H3V13.6473L14.435 2.21231C14.8256 1.82179 15.4587 1.82179 15.8492 2.21231L18.6777 5.04074C19.0682 5.43126 19.0682 6.06443 18.6777 6.45495L7.24264 17.89ZM3 19.89H21V21.89H3V19.89Z",
+  send:"M21.7267 2.95694L16.2734 22.0432C16.1225 22.5716 15.7979 22.5956 15.5563 22.1126L11 13L1.9229 9.36919C1.41322 9.16532 1.41953 8.86022 1.95695 8.68108L21.0432 2.31901C21.5716 2.14285 21.8747 2.43866 21.7267 2.95694ZM19.0353 5.09647L6.81221 9.17085L12.4488 11.4255L15.4895 17.5068L19.0353 5.09647Z",
+  bell:"M20 17H22V19H2V17H4V10C4 5.58172 7.58172 2 12 2C16.4183 2 20 5.58172 20 10V17ZM18 17V10C18 6.68629 15.3137 4 12 4C8.68629 4 6 6.68629 6 10V17H18ZM9 21H15V23H9V21Z",
+  logout:"M5 22C4.44772 22 4 21.5523 4 21V3C4 2.44772 4.44772 2 5 2H19C19.5523 2 20 2.44772 20 3V6H18V4H6V20H18V18H20V21C20 21.5523 19.5523 22 19 22H5ZM18 16V13H11V11H18V8L23 12L18 16Z",
+  menu:"M3 4H21V6H3V4ZM3 11H21V13H3V11ZM3 18H21V20H3V18Z",
+  home:"M19 21H5C4.44772 21 4 20.5523 4 20V11L1 11L11.3273 1.6115C11.7087 1.26475 12.2913 1.26475 12.6727 1.6115L23 11L20 11V20C20 20.5523 19.5523 21 19 21ZM13 19H18V9.15745L12 3.7029L6 9.15745V19H11V13H13V19Z",
+  attach:"M14.8287 7.75737L9.1718 13.4142C8.78127 13.8047 8.78127 14.4379 9.1718 14.8284C9.56232 15.219 10.1955 15.219 10.586 14.8284L16.2429 9.17158C17.4144 8.00001 17.4144 6.10052 16.2429 4.92894C15.0713 3.75737 13.1718 3.75737 12.0002 4.92894L6.34337 10.5858C4.39075 12.5384 4.39075 15.7042 6.34337 17.6569C8.29599 19.6095 11.4618 19.6095 13.4144 17.6569L19.0713 12L20.4855 13.4142L14.8287 19.0711C12.095 21.8047 7.66283 21.8047 4.92916 19.0711C2.19549 16.3374 2.19549 11.9053 4.92916 9.17158L10.586 3.51473C12.5386 1.56211 15.7045 1.56211 17.6571 3.51473C19.6097 5.46735 19.6097 8.63317 17.6571 10.5858L12.0002 16.2427C10.8287 17.4142 8.92916 17.4142 7.75759 16.2427C6.58601 15.0711 6.58601 13.1716 7.75759 12L13.4144 6.34316L14.8287 7.75737Z",
+  image:"M5 11.1005L7 9.1005L12.5 14.6005L16 11.1005L19 14.1005V5H5V11.1005ZM5 13.9289V19H8.1005L11.0858 16.0147L7 11.9289L5 13.9289ZM10.9289 19H19V16.9289L16 13.9289L10.9289 19ZM4 3H20C20.5523 3 21 3.44772 21 4V20C21 20.5523 20.5523 21 20 21H4C3.44772 21 3 20.5523 3 20V4C3 3.44772 3.44772 3 4 3ZM15.5 10C14.6716 10 14 9.32843 14 8.5C14 7.67157 14.6716 7 15.5 7C16.3284 7 17 7.67157 17 8.5C17 9.32843 16.3284 10 15.5 10Z",
+  file:"M21 8V20.9932C21 21.5501 20.5552 22 20.0066 22H3.9934C3.44495 22 3 21.556 3 21.0082V2.9918C3 2.45531 3.4487 2 4.00221 2H14.9968L21 8ZM19 9H14V4H5V20H19V9ZM8 11H16V13H8V11ZM8 15H16V17H8V15Z",
+  download:"M13 10H18L12 16L6 10H11V3H13V10ZM4 19H20V12H22V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V12H4V19Z",
+  xCircle:"M12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22ZM12 20C16.4183 20 20 16.4183 20 12C20 7.58172 16.4183 4 12 4C7.58172 4 4 7.58172 4 12C4 16.4183 7.58172 20 12 20ZM12 10.5858L14.8284 7.75736L16.2426 9.17157L13.4142 12L16.2426 14.8284L14.8284 16.2426L12 13.4142L9.17157 16.2426L7.75736 14.8284L10.5858 12L7.75736 9.17157L9.17157 7.75736L12 10.5858Z",
+  hourglass:"M4 2H20V6.45994L13.5366 12L20 17.5401V22H4V17.5401L10.4634 12L4 6.45994V2ZM12 10.6829L18 5.54007V4H6V5.54007L12 10.6829ZM12 13.3171L6 18.4599V20H18V18.4599L12 13.3171Z",
+  arrowL:"M7.82843 10.9999H20V12.9999H7.82843L13.1924 18.3638L11.7782 19.778L4 11.9999L11.7782 4.22168L13.1924 5.63589L7.82843 10.9999Z",
+  team:"M12 11C14.7614 11 17 13.2386 17 16V22H15V16C15 14.4023 13.7511 13.0963 12.1763 13.0051L12 13C10.4023 13 9.09634 14.2489 9.00509 15.8237L9 16V22H7V16C7 13.2386 9.23858 11 12 11ZM5.5 14C5.77885 14 6.05009 14.0326 6.3101 14.0942C6.14202 14.594 6.03873 15.122 6.00896 15.6693L6 16L6.0007 16.0856C5.88757 16.0456 5.76821 16.0187 5.64446 16.0069L5.5 16C4.7203 16 4.07955 16.5949 4.00687 17.3555L4 17.5V22H2V17.5C2 15.567 3.567 14 5.5 14ZM18.5 14C20.433 14 22 15.567 22 17.5V22H20V17.5C20 16.7203 19.4051 16.0796 18.6445 16.0069L18.5 16C18.3248 16 18.1566 16.03 18.0003 16.0852L18 16C18 15.3343 17.8916 14.694 17.6915 14.0956C17.9499 14.0326 18.2211 14 18.5 14ZM5.5 8C6.88071 8 8 9.11929 8 10.5C8 11.8807 6.88071 13 5.5 13C4.11929 13 3 11.8807 3 10.5C3 9.11929 4.11929 8 5.5 8ZM18.5 8C19.8807 8 21 9.11929 21 10.5C21 11.8807 19.8807 13 18.5 13C17.1193 13 16 11.8807 16 10.5C16 9.11929 17.1193 8 18.5 8ZM5.5 10C5.22386 10 5 10.2239 5 10.5C5 10.7761 5.22386 11 5.5 11C5.77614 11 6 10.7761 6 10.5C6 10.2239 5.77614 10 5.5 10ZM18.5 10C18.2239 10 18 10.2239 18 10.5C18 10.7761 18.2239 11 18.5 11C18.7761 11 19 10.7761 19 10.5C19 10.2239 18.7761 10 18.5 10ZM12 2C14.2091 2 16 3.79086 16 6C16 8.20914 14.2091 10 12 10C9.79086 10 8 8.20914 8 6C8 3.79086 9.79086 2 12 2ZM12 4C10.8954 4 10 4.89543 10 6C10 7.10457 10.8954 8 12 8C13.1046 8 14 7.10457 14 6C14 4.89543 13.1046 4 12 4Z",
+  share:"M13.1202 17.0228L8.92129 14.7324C8.19135 15.5125 7.15261 16 6 16C3.79086 16 2 14.2091 2 12C2 9.79086 3.79086 8 6 8C7.15255 8 8.19125 8.48746 8.92118 9.26746L13.1202 6.97713C13.0413 6.66441 13 6.33707 13 6C13 3.79086 14.7909 2 17 2C19.2091 2 21 3.79086 21 6C21 8.20914 19.2091 10 17 10C15.8474 10 14.8087 9.51246 14.0787 8.73246L9.87977 11.0228C9.95863 11.3355 10 11.6629 10 12C10 12.3371 9.95863 12.6644 9.87977 12.9771L14.0788 15.2675C14.8087 14.4875 15.8474 14 17 14C19.2091 14 21 15.7909 21 18C21 20.2091 19.2091 22 17 22C14.7909 22 13 20.2091 13 18C13 17.6629 13.0413 17.3355 13.1202 17.0228Z",
+  flag:"M12.382 3C12.7607 3 13.107 3.214 13.2764 3.55279L14 5H20C20.5523 5 21 5.44772 21 6V17C21 17.5523 20.5523 18 20 18H13.618C13.2393 18 12.893 17.786 12.7236 17.4472L12 16H5V22H3V3H12.382ZM11.7639 5H5V14H13.2361L14.2361 16H19V7H12.7639L11.7639 5Z"
+};
+function ic(n,s=18){return `<svg class="ic" width="${s}" height="${s}" viewBox="0 0 24 24" fill="currentColor"><path d="${P[n]||P.draft}"/></svg>`}
+
+/* ===== Users（沿用工單通 + 加總經理決策者）===== */
+const USERS={
+  u1:{id:"u1",name:"王小明",dept:"業務部"},
+  m_bz:{id:"m_bz",name:"周文彬",dept:"業務部主管"},
+  u2:{id:"u2",name:"陳大華",dept:"資訊部"},
+  u3:{id:"u3",name:"黃美珍",dept:"行銷部"},
+  u5:{id:"u5",name:"張偉",dept:"行政部"},
+  u6:{id:"u6",name:"李美玲",dept:"財務部"},
+  u7:{id:"u7",name:"吳佩珊",dept:"人資部"},
+  m_ga:{id:"m_ga",name:"鄭雅文",dept:"行政部主管"},
+  m_fi:{id:"m_fi",name:"蔡英傑",dept:"財務部主管"},
+  gm:{id:"gm",name:"林淑芬",dept:"總經理室"},
+  admin:{id:"admin",name:"系統管理員",dept:"資訊部"}
+};
+/* 可被指定為會簽人 / 決策者的候選 */
+const SIGNER_POOL=["m_bz","u2","u3","u5","u6","u7","m_ga","m_fi","gm"];
+const DECIDERS=["gm","m_bz","m_ga","m_fi"]; // 可當最終決策者(gm=總經理 林淑芬 為最高決策)
+const DEMO_ROLES=["u1","m_bz","u2","gm","admin"]; // 切換器：發起人/主管/會簽人/決策者/管理員
+function roleLabel(u){if(u.label)return u.label;return u.id==="gm"?"最終決策者":u.id==="admin"?"系統管理員":u.id.indexOf("m_")===0?"部門主管":"員工"}
+
+/* ===== Time ===== */
+const H=3600e3,DAY=86400e3;const now=()=>Date.now();const ago=h=>now()-h*H;
+function fmt(ts){const d=new Date(ts);const p=n=>String(n).padStart(2,"0");return `${d.getMonth()+1}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`}
+function rel(ts){const m=Math.round((now()-ts)/6e4);if(m<1)return "剛剛";if(m<60)return m+" 分鐘前";const h=Math.floor(m/60);if(h<24)return h+" 小時前";return Math.floor(h/24)+" 天前"}
+
+/* ===== Status ===== */
+const STATUS={
+  circulating:{l:"會簽中",c:"var(--s-open)",bg:"var(--s-open-bg)"},
+  passed:{l:"通過 · 可執行",c:"var(--s-resolved)",bg:"var(--s-resolved-bg)"},
+  closed:{l:"已結案",c:"var(--s-closed)",bg:"var(--s-closed-bg)"},
+  returned:{l:"退回重擬",c:"var(--s-need)",bg:"var(--s-need-bg)"},
+  withdrawn:{l:"已撤回",c:"var(--s-closed)",bg:"var(--s-closed-bg)"}
+};
+const EVENT={created:"add",signed:"checkLn",comment:"send",suggest:"flag",decided_pass:"shield",decided_return:"back",shared:"share",withdrawn:"back",resubmitted:"reply",edited:"edit",closed:"checkLn"};
+function hasDecider(d){return !!d.decider.uid}
+function docStatus(d){if(d.withdrawn)return "withdrawn";if(d.closed)return "closed";
+  if(d.decider.uid){if(d.decider.st==="approved")return "passed";if(d.decider.st==="returned")return "returned";return "circulating";}
+  return d.signers.length&&d.signers.every(s=>s.st==="approved")?"passed":"circulating";}
+function progress(d){const done=d.signers.filter(s=>s.st==="approved").length;return {done,total:d.signers.length}}
+
+/* ===== Mock 簽呈 ===== */
+let SEQ=42;
+function sno(offD){const dt=new Date(now()-offD*DAY);const p=n=>String(n).padStart(2,"0");return `SP-${dt.getFullYear()}${p(dt.getMonth()+1)}${p(dt.getDate())}-${String(SEQ--).padStart(3,"0")}`}
+const sg=(uid,st,opinion)=>({uid,st:st||"pending",opinion:opinion||""});
+
+let DOCS=[
+  {id:"s1",no:sno(0.3),title:"2026 年度教育訓練計畫",originId:"u1",originDept:"業務部",
+   content:"擬辦理 2026 全年度教育訓練，分四季共 8 場，預算約 30 萬，含外訓講師與場地。請各單位會簽確認。",
+   signers:[sg("u2","approved","資訊部可配合線上平台。"),sg("u7","pending"),sg("m_fi","approved","預算可，惟請附分季明細。")],
+   decider:{uid:"m_bz",st:"pending",opinion:""},shares:[],withdrawn:false,attachments:[{name:"訓練計畫草案.pdf",size:"320 KB",isImg:false,data:"../08_共用/att/plan.pdf"}],
+   created:ago(20),updated:ago(2),
+   events:[{t:"created",by:"u1",at:ago(20),x:{signers:["u2","u7","m_fi"],decider:"m_bz"}},
+     {t:"signed",by:"u2",at:ago(10),x:{opinion:"資訊部可配合線上平台。"}},
+     {t:"signed",by:"m_fi",at:ago(2),x:{opinion:"預算可，惟請附分季明細。"}}]},
+  {id:"s2",no:sno(1.5),title:"採購新版設計軟體授權（10 套）",originId:"u5",originDept:"行政部",
+   content:"設計部門需升級設計軟體至新版，採購 10 套年度授權，預算約 18 萬。",
+   signers:[sg("u2","approved","技術相容性確認 OK。"),sg("m_fi","approved","預算已編列。")],
+   decider:{uid:"gm",st:"approved",opinion:"同意採購，請依採購流程辦理。"},shares:[],withdrawn:false,attachments:[],
+   created:ago(40),updated:ago(30),
+   events:[{t:"created",by:"u5",at:ago(40),x:{signers:["u2","m_fi"],decider:"gm"}},
+     {t:"signed",by:"u2",at:ago(38),x:{opinion:"技術相容性確認 OK。"}},
+     {t:"signed",by:"m_fi",at:ago(36),x:{opinion:"預算已編列。"}},
+     {t:"decided_pass",by:"gm",at:ago(30),x:{opinion:"同意採購，請依採購流程辦理。"}}]},
+  {id:"s3",no:sno(2.0),title:"3F 辦公室空間重新規劃",originId:"u1",originDept:"業務部",
+   content:"擬調整 3F 座位與會議室配置，提升空間利用率，需停用該樓層 2 天施工。",
+   signers:[sg("m_ga","approved","行政可配合，惟施工請排假日。"),sg("u3","pending")],
+   decider:{uid:"gm",st:"returned",opinion:"先評估對客戶接待動線影響，補充後再送。"},shares:[],withdrawn:false,attachments:[],
+   created:ago(60),updated:ago(45),
+   events:[{t:"created",by:"u1",at:ago(60),x:{signers:["m_ga","u3"],decider:"gm"}},
+     {t:"signed",by:"m_ga",at:ago(55),x:{opinion:"行政可配合，惟施工請排假日。"}},
+     {t:"decided_return",by:"gm",at:ago(45),x:{reason:"先評估對客戶接待動線影響，補充後再送。"}}]},
+  {id:"s4",no:sno(0.6),title:"資安政策更新（密碼與 VPN 規範）",originId:"u2",originDept:"資訊部",
+   content:"配合稽核要求更新資安政策：密碼長度 12 碼、每 90 天更換、VPN 雙因素驗證。請相關單位會簽。",
+   signers:[sg("u3","approved","資訊部主推，已核。"),sg("u7","pending"),sg("m_fi","pending")],
+   decider:{uid:"gm",st:"pending",opinion:""},
+   shares:[{by:"u3",to:"u5",at:ago(3)}],withdrawn:false,attachments:[{name:"資安政策修訂對照表.xlsx",size:"45 KB",isImg:false,data:"../08_共用/att/policy.xlsx"}],
+   created:ago(8),updated:ago(1),
+   events:[{t:"created",by:"u2",at:ago(8),x:{signers:["u3","u7","m_fi"],decider:"gm"}},
+     {t:"signed",by:"u3",at:ago(6),x:{opinion:"資訊部主推，已核。"}},
+     {t:"suggest",by:"u3",at:ago(5),x:{text:"建議 VPN 雙因素先在資訊部試行一個月再全公司上線。"}},
+     {t:"shared",by:"u3",at:ago(3),x:{to:"u5"}}]}
+];
+
+/* ===== State ===== */
+const state={user:null,route:"#/docs",tab:0,filters:{q:""},sidebarOpen:false,notifOpen:false,editingId:null};
+let draft={title:"",content:"",signers:[],decider:"gm",files:[]};
+let cmtFiles=[];
+let NOTIFS=[
+  {to:"m_bz",text:"王小明 送簽：2026 年度教育訓練計畫，待你核定。",did:"s1",at:ago(20),read:false},
+  {to:"u7",text:"資安政策更新 邀請你會簽。",did:"s4",at:ago(8),read:false},
+  {to:"u1",text:"你的簽呈（3F 辦公室空間）被退回重擬。",did:"s3",at:ago(45),read:false},
+  {to:"gm",text:"資安政策更新（密碼與 VPN 規範）已完成部分會簽，待你（總經理）最終核定。",did:"s4",at:ago(1),read:false},
+  {to:"u5",text:"黃美珍 分享簽呈給你檢閱：資安政策更新。",did:"s4",at:ago(3),read:true}
+];
+/* ── localStorage 持久化：簽呈與通知存本機,離開重進保留(首頁「重置測試資料」清回種子) ── */
+const DOC_KEY="ehub_docs_v1", DOCN_KEY="ehub_doc_notifs_v1";
+(function(){try{
+  var d=localStorage.getItem(DOC_KEY);
+  if(d){var a=JSON.parse(d);if(Array.isArray(a)&&a.length){DOCS.length=0;a.forEach(function(x){DOCS.push(x)});}}
+  var n=localStorage.getItem(DOCN_KEY);
+  if(n){var b=JSON.parse(n);if(Array.isArray(b)){NOTIFS.length=0;b.forEach(function(x){NOTIFS.push(x)});}}
+}catch(e){}})();
+function saveState(){try{localStorage.setItem(DOC_KEY,JSON.stringify(DOCS));localStorage.setItem(DOCN_KEY,JSON.stringify(NOTIFS));}catch(e){}}
+
+/* ===== Core ===== */
+const D=id=>DOCS.find(d=>d.id===id);
+function ev(d,type,x){d.events.push({t:type,by:state.user.id,at:now(),x:x||{}})}
+function touch(d){d.updated=now()}
+function notify(uid,text,did){if(uid&&uid!==state.user.id){NOTIFS.push({to:uid,text,did,at:now(),read:false});try{if(window.EHub&&EHub.pushNotif)EHub.pushNotif({to:USERS[uid]&&USERS[uid].name,mod:"signoff",text:text,link:"03_電子簽呈/index.html#/d/"+did,at:now()})}catch(e){}}}
+function mySigner(d){return d.signers.find(s=>s.uid===state.user.id)}
+function isDecider(d){return d.decider.uid===state.user.id}
+function isShared(d){return (d.shares||[]).some(s=>s.to===state.user.id)}
+function isOrigin(d){return d.originId===state.user.id}
+
+/* 球在我手上：會簽待簽 / 決策待核定 */
+function ballOnMe(d){const st=docStatus(d);if(st!=="circulating")return st==="returned"&&isOrigin(d);
+  const ms=mySigner(d);if(ms&&ms.st==="pending")return true;
+  if(isDecider(d)&&d.decider.st==="pending")return true;
+  if(state.user.id==="admin")return false;return false}
+/* 把「待我簽核」數即時寫進共用紅點層(ehub_badges_v2.signoff),首頁即時撈、隨操作更新。
+   uid 版 ballOnMe,算全部人 → 登入任何帳號首頁都準。 */
+function ballOnUid(d,uid){const st=docStatus(d);if(st!=="circulating")return st==="returned"&&d.originId===uid;
+  var ms=d.signers.find(function(s){return s.uid===uid});if(ms&&ms.st==="pending")return true;
+  if(d.decider.uid===uid&&d.decider.st==="pending")return true;return false}
+function syncSignoffBadges(){try{var EH=window.EHub;if(!EH||!EH.loadBadges)return;var cnt={};DOCS.forEach(function(d){for(var uid in USERS){if(uid==="admin")continue;if(ballOnUid(d,uid))cnt[uid]=(cnt[uid]||0)+1}});var m=EH.loadBadges();for(var nm in m){if(m[nm]&&m[nm].signoff!=null)delete m[nm].signoff}for(var u in cnt){var n2=USERS[u]&&USERS[u].name;if(!n2)continue;if(!m[n2])m[n2]={};m[n2].signoff=cnt[u]}EH.saveBadges(m)}catch(e){}}
+function ballText(d){const st=docStatus(d);
+  if(st==="passed")return "已通過";if(st==="withdrawn")return "已撤回";
+  if(st==="returned")return USERS[d.originId].name+" 重擬";
+  const waitSign=d.signers.filter(s=>s.st==="pending").map(s=>USERS[s.uid].name);
+  const parts=[];if(waitSign.length)parts.push("會簽:"+waitSign.join("、"));
+  if(d.decider.st==="pending")parts.push("決策:"+USERS[d.decider.uid].name);
+  return parts.join(" · ")||"—"}
+
+/* ===== in-page modal（取代 native）===== */
+function openModal({title,message,field,okText="確定",cancelText="取消",danger}){
+  return new Promise(resolve=>{const host=document.getElementById("modal");let fh="";
+    if(field){if(field.type==="textarea")fh=`<textarea class="modal-input" id="modal-in" rows="3" placeholder="${field.placeholder||""}"></textarea>`;
+      else if(field.type==="select")fh=`<select class="modal-input" id="modal-in">${field.options.map(o=>`<option value="${o.value}">${o.label}</option>`).join("")}</select>`;
+      else fh=`<input class="modal-input" id="modal-in" placeholder="${field.placeholder||""}">`;}
+    const wf=field&&field.files;const fHTML=wf?`<div class="filelist" id="modal-files" style="margin-top:10px"></div><button type="button" class="btn btn-ghost btn-sm" id="modal-attach" style="margin-top:8px">${ic("attach",14)}附加檔案</button><input type="file" id="modal-file" multiple style="display:none">`:"";
+    host.innerHTML=`<div class="modal-ov" id="modal-ov"><div class="modal-card"><div class="modal-title">${title}</div>${message?`<div class="modal-msg">${message}</div>`:""}${field&&field.label?`<label class="modal-label">${field.label}</label>`:""}${fh}${fHTML}<div class="modal-foot"><button class="btn btn-ghost" id="modal-cc">${cancelText}</button><button class="btn btn-${danger?"danger":"primary"}" id="modal-ok">${okText}</button></div></div></div>`;
+    const inp=document.getElementById("modal-in");const mfiles=[];const close=v=>{document.onkeydown=null;host.innerHTML="";resolve(v)};
+    if(inp)setTimeout(()=>inp.focus(),20);
+    if(wf){const fl=document.getElementById("modal-files");const rf=()=>fl.innerHTML=mfiles.map((f,i)=>`<div class="fileitem"><div class="thumb">${(f.data||f.url)&&f.isImg?`<img src="${esc(f.data||f.url)}">`:ic(f.isImg?"image":"file",18)}</div><div class="meta"><div class="nm">${esc(f.name)}</div><div class="sz">${f.size}</div></div><button class="rm" onclick="this.parentNode.remove();window.__mfrm&&window.__mfrm(${i})">${ic("xCircle",18)}</button></div>`).join("");
+      window.__mfrm=i=>{mfiles.splice(i,1);rf()};document.getElementById("modal-attach").onclick=()=>document.getElementById("modal-file").click();
+      document.getElementById("modal-file").onchange=e=>{EHub.readFiles(e.target.files,function(arr){arr.forEach(f=>mfiles.push(f));rf()});e.target.value=""};}
+    document.getElementById("modal-ok").onclick=()=>{if(!field)return close(true);const v=field.type==="select"?inp.value:(inp.value||"").trim();if(field.required&&!v&&!mfiles.length){inp.style.borderColor="var(--danger)";inp.focus();return}close(wf?{text:v,files:mfiles}:v)};
+    document.getElementById("modal-cc").onclick=()=>close(field?null:false);
+    document.getElementById("modal-ov").onclick=e=>{if(e.target.id==="modal-ov")close(field?null:false)};
+    document.onkeydown=e=>{if(e.key==="Escape")close(field?null:false)};});
+}
+const mArea=(t,p,r)=>openModal({title:t,field:{type:"textarea",placeholder:p,required:r}});
+const mSelect=(t,l,o)=>openModal({title:t,field:{type:"select",label:l,options:o}});
+const mConfirm=(t,m,d)=>openModal({title:t,message:m,danger:d});
+function fmtSize(b){return b<1024?b+" B":b<1048576?(b/1024).toFixed(0)+" KB":(b/1048576).toFixed(1)+" MB"}
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function infoModal(title,html){const host=document.getElementById("modal");
+  host.innerHTML=`<div class="modal-ov" id="modal-ov"><div class="modal-card" style="max-width:520px"><div class="modal-title">${title}</div><div class="modal-info">${html}</div><div class="modal-foot"><button class="btn btn-primary" id="modal-ok">關閉</button></div></div></div>`;
+  const close=()=>{host.innerHTML=""};document.getElementById("modal-ok").onclick=close;document.getElementById("modal-ov").onclick=e=>{if(e.target.id==="modal-ov")close()}}
+function showEditContent(content){const html=content.map(c=>`<div class="diff-block"><div class="diff-l">${c.label}</div><div class="diff-row"><span class="diff-tag old">修改前</span><div class="diff-txt">${esc(c.from)||"（空）"}</div></div><div class="diff-row"><span class="diff-tag new">修改後</span><div class="diff-txt">${esc(c.to)||"（空）"}</div></div></div>`).join("");infoModal("修改內容對照",html)}
+
+/* ===== Actions ===== */
+async function signApprove(id){const d=D(id);const s=mySigner(d);
+  const op=await mArea("會簽核准","簽核意見（選填）",false);if(op===null)return;
+  s.st="approved";s.opinion=op;ev(d,"signed",{opinion:op});touch(d);
+  notify(d.originId,`${state.user.name} 已會簽：${d.title}`,id);notify(d.decider.uid,`${state.user.name} 已會簽：${d.title}`,id);
+  if(!d.decider.uid&&d.signers.every(x=>x.st==="approved"))notify(d.originId,`簽呈已全部會簽通過：${d.title}`,id);
+  toast("已核准會簽");render()}
+async function suggestChange(id){const d=D(id);const r=await mArea("發起修改建議","你建議修改的內容（只記錄、不擋其他人簽核）",true);if(!r)return;
+  ev(d,"suggest",{text:r});touch(d);notify(d.originId,`${state.user.name} 對「${d.title}」提出修改建議`,id);notify(d.decider.uid,`收到修改建議：${d.title}`,id);toast("已送出修改建議");render()}
+async function deciderPass(id){const d=D(id);const op=await mArea("核准通過（核定）","核定意見（選填）。核准後此簽呈即通過、可執行。",false);if(op===null)return;
+  d.decider.st="approved";d.decider.opinion=op;ev(d,"decided_pass",{opinion:op});touch(d);
+  notify(d.originId,`簽呈已核准通過：${d.title}`,id);d.signers.forEach(s=>notify(s.uid,`簽呈已核准通過：${d.title}`,id));toast("已核准通過");render()}
+async function deciderReturn(id){const d=D(id);const r=await mArea("退回重擬","退回原因（必填）",true);if(!r)return;
+  d.decider.st="returned";ev(d,"decided_return",{reason:r});touch(d);
+  notify(d.originId,`簽呈被退回重擬：${d.title}`,id);toast("已退回發起人重擬");render()}
+async function shareDoc(id){const d=D(id);const cands=Object.values(USERS).filter(u=>u.id!==state.user.id&&u.id!=="admin").map(u=>({value:u.id,label:u.name+"（"+u.dept+"）"}));
+  const to=await mSelect("分享給他人檢閱","選擇對象（對方只能檢閱、不能修改/簽核）",cands);if(!to)return;
+  if(!d.shares)d.shares=[];if(d.shares.some(s=>s.to===to)){toast("已分享給此人","warn");return}
+  d.shares.push({by:state.user.id,to,at:now()});ev(d,"shared",{to});touch(d);notify(to,`${state.user.name} 分享簽呈給你檢閱：${d.title}`,id);toast("已分享給 "+USERS[to].name+"（唯讀）");render()}
+async function withdrawDoc(id){const d=D(id);const ok=await mConfirm("撤回簽呈","確定撤回此簽呈？撤回後即結束，需重新發起。",true);if(!ok)return;
+  d.withdrawn=true;ev(d,"withdrawn",{});touch(d);d.signers.forEach(s=>notify(s.uid,`簽呈已撤回：${d.title}`,id));notify(d.decider.uid,`簽呈已撤回：${d.title}`,id);toast("已撤回");render()}
+async function closeDoc(id){const d=D(id);const ok=await mConfirm("結案","確認此簽呈事項已執行完成、予以結案歸檔？結案後即為終態。",false);if(!ok)return;
+  const r=await mArea("結案說明","結案／執行結果說明（選填）",false);if(r===null)return;
+  d.closed=true;ev(d,"closed",{note:r});touch(d);notify(d.originId,`簽呈已結案：${d.title}`,id);d.signers.forEach(s=>notify(s.uid,`簽呈已結案：${d.title}`,id));toast("已結案");render()}
+function resubmitDoc(id){editDoc(id)} // 退回後修改重送 = 進編輯
+async function addComment(id){const d=D(id);const ta=document.getElementById("cmt");const v=ta?ta.value.trim():"";if(!v&&!cmtFiles.length)return;ev(d,"comment",{text:v,atts:cmtFiles.slice()});cmtFiles=[];toast("已留言","send");render()}
+function editDoc(id){const d=D(id);state.editingId=id;draft={title:d.title,content:d.content,signers:d.signers.map(s=>s.uid),decider:d.decider.uid,files:(d.attachments||[]).slice()};state.route="#/new";location.hash="#/new";render()}
+
+/* who can edit/act */
+function docActions(d){const u=state.user,A=[],st=docStatus(d);const a=(label,icon,fn,style)=>A.push({label,icon,fn,style});
+  if(st==="circulating"){
+    const s=mySigner(d);
+    if(s&&s.st==="pending"){a("會簽核准","checkLn",()=>signApprove(d.id),"primary");a("發起修改建議","flag",()=>suggestChange(d.id),"ghost")}
+    if(isDecider(d)&&d.decider.st==="pending"){a("核准通過 · 核定","shield",()=>deciderPass(d.id),"primary");a("退回重擬","back",()=>deciderReturn(d.id),"danger")}
+    if(isOrigin(d))a("撤回簽呈","back",()=>withdrawDoc(d.id),"danger");
+    // 分享：簽核人/決策者皆可
+    if(s||isDecider(d)||isOrigin(d))a("分享給他人檢閱","share",()=>shareDoc(d.id),"ghost");
+  }
+  if(st==="passed"&&(isDecider(d)||u.id==="admin"||(isOrigin(d)&&!hasDecider(d))))a("結案（已執行完成）","checkLn",()=>closeDoc(d.id),"primary");
+  if(st==="returned"&&isOrigin(d))a("修改後重送","reply",()=>resubmitDoc(d.id),"primary");
+  return A}
+
+/* ===== Visibility / tabs ===== */
+function visible(){const u=state.user;if(!u)return [];if(u.id==="admin")return DOCS;
+  return DOCS.filter(d=>d.originId===u.id||d.signers.some(s=>s.uid===u.id)||d.decider.uid===u.id||isShared(d))}
+function tabsFor(){const u=state.user;
+  const T=[{l:"待我處理",f:d=>ballOnMe(d)}];
+  if(DECIDERS.includes(u.id)||DOCS.some(d=>d.decider.uid===u.id))T.push({l:"待我核定",f:d=>docStatus(d)==="circulating"&&d.decider.uid===u.id&&d.decider.st==="pending"});
+  T.push({l:"我發起的",f:d=>d.originId===u.id});
+  T.push({l:"分享給我",f:d=>isShared(d)});
+  T.push({l:"全部",f:()=>true});
+  return T}
+function todoCount(){return visible().filter(ballOnMe).length}
+function unreadCount(){return NOTIFS.filter(n=>n.to===state.user.id&&!n.read).length}
+
+/* ===== Render helpers ===== */
+function avatar(uid,cls){const u=USERS[uid];if(!u)return "";const hue=[...u.name].reduce((a,c)=>a+c.charCodeAt(0),0)%360;
+  return `<div class="av ${cls||""}" style="background:hsla(${hue},48%,52%,.2);color:hsl(${hue},60%,58%);border:1px solid hsla(${hue},48%,55%,.34)">${u.name[0]}</div>`}
+function statusBadge(d){const st=docStatus(d),m=STATUS[st];return `<span class="badge" style="color:${m.c};background:${m.bg}"><span class="dot"></span>${m.l}</span>`}
+function progBar(d){const p=progress(d);return `<span class="prog">${ic("checkLn",13)}${p.done}/${p.total}<span class="pbar"><span class="pfill" style="width:${p.total?p.done/p.total*100:0}%"></span></span></span>`}
+function ballTag(d){const me=ballOnMe(d);return `<span class="ball ${me?"me":""}">${ic("hourglass",12)}${me?"待我":"待 "+ballText(d)}</span>`}
+function toast(msg,icon="check"){const el=document.getElementById("toast");el.innerHTML=ic(icon==="check"?"checkLn":icon,16)+`<span>${msg}</span>`;el.classList.add("show");clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove("show"),2500)}
+function attHTML(a,mini){const src=a.data||a.url;const dlIco='<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>';const dl=mini?"":(src?`<a class="dl" title="下載" href="${esc(src)}" download="${esc(a.name)}" onclick="event.stopPropagation()">${dlIco}</a>`:"");return `<div class="att ${mini?"mini":""}"><div class="thumb">${src&&a.isImg?`<img src="${esc(src)}" style="cursor:zoom-in" onclick="event.stopPropagation();EHub.lightbox(this.src)">`:ic(a.isImg?"image":"file",mini?15:20)}</div><div><div class="nm">${esc(a.name)}</div>${a.size&&!mini?`<div class="sz">${a.size}</div>`:""}</div>${dl}</div>`}
+let _fnreg={},_fnid=0;function reg(fn){const k="_f"+(_fnid++);_fnreg[k]=fn;return "window.__call('"+k+"')"}window.__call=k=>{if(_fnreg[k])_fnreg[k]()};
+
+/* ===== Views ===== */
+function viewDocs(){const u=state.user,tabs=tabsFor();if(state.tab>=tabs.length)state.tab=0;
+  const f=state.filters;let list=visible().filter(tabs[state.tab].f).filter(d=>!f.q||d.title.includes(f.q)||d.no.toLowerCase().includes(f.q.toLowerCase())).sort((a,b)=>b.updated-a.updated);
+  return `
+  <div class="pagehead"><div><div class="k">簽呈</div><h2>電子簽呈</h2><p>會簽（平行）+ 最終決策者核定 · 點列開詳情</p></div>
+    <a href="#/new" class="btn btn-primary">${ic("add",17)}發起簽呈</a></div>
+  <div class="tabs">${tabs.map((tb,i)=>`<button class="tab ${i===state.tab?"active":""}" onclick="setTab(${i})">${tb.l}<span class="count">${visible().filter(tb.f).length}</span></button>`).join("")}</div>
+  <div class="card">${list.length?`<table class="ttable"><thead><tr><th style="width:34%">簽呈</th><th>發起人</th><th>會簽進度</th><th>待誰處理</th><th>狀態</th></tr></thead><tbody>${list.map(rowHTML).join("")}</tbody></table>`:`<div class="empty">${ic("draft",40)}<div>此分類目前沒有簽呈</div></div>`}</div>`}
+function rowHTML(d){const me=ballOnMe(d);
+  return `<tr class="${me?"row-me":""}" onclick="go('#/d/${d.id}')">
+    <td><div class="t-title">${esc(d.title)}</div><div class="t-sub"><span class="t-no">${d.no}</span>${(d.shares||[]).length?` · ${ic("share",12)}已分享 ${d.shares.length}`:""}${isShared(d)?` · ${ic("share",12)}分享給我`:""}</div></td>
+    <td><div class="who">${avatar(d.originId)}<div><div class="nm">${USERS[d.originId].name}</div><div class="dp">${d.originDept}</div></div></div></td>
+    <td>${progBar(d)}</td>
+    <td>${ballTag(d)}</td>
+    <td>${statusBadge(d)}</td></tr>`}
+
+function signerRow(d,s){const me=s.uid===state.user.id;const done=s.st==="approved";
+  return `<div class="signer ${me?"me":""}"><div class="av" style="${avStyle(s.uid)}">${USERS[s.uid].name[0]}</div>
+    <div style="min-width:0"><div class="nm">${USERS[s.uid].name}${me?"（我）":""}</div><div class="role-tag">${USERS[s.uid].dept}${s.opinion?` · 意見：${esc(s.opinion)}`:""}</div></div>
+    <span class="st" style="color:${done?'var(--s-resolved)':'var(--ink-3)'}">${ic(done?"checkLn":"hourglass",14)}${done?"已核准":"待會簽"}</span></div>`}
+function avStyle(uid){const u=USERS[uid];const hue=[...u.name].reduce((a,c)=>a+c.charCodeAt(0),0)%360;return `background:hsla(${hue},48%,52%,.2);color:hsl(${hue},60%,58%);border:1px solid hsla(${hue},48%,55%,.34)`}
+function deciderRow(d){const dc=d.decider;const me=dc.uid===state.user.id;const st=dc.st;
+  const lbl=st==="approved"?"已核准通過":st==="returned"?"已退回重擬":"待核定";const col=st==="approved"?"var(--s-resolved)":st==="returned"?"var(--s-need)":"var(--s-appr)";
+  return `<div class="signer ${me?"me":""}" style="border-color:${st==="pending"?"var(--s-appr)":"var(--line)"}"><div class="av" style="${avStyle(dc.uid)}">${USERS[dc.uid].name[0]}</div>
+    <div style="min-width:0"><div class="nm">${ic("shield",13)} ${USERS[dc.uid].name}${me?"（我）":""} · 最終決策者</div><div class="role-tag">${USERS[dc.uid].dept}${dc.opinion?` · 核定意見：${esc(dc.opinion)}`:""}</div></div>
+    <span class="st" style="color:${col}">${ic(st==="approved"?"shield":st==="returned"?"back":"hourglass",14)}${lbl}</span></div>`}
+
+function viewDetail(id){const d=D(id);if(!d)return `<div class="empty">找不到簽呈</div>`;
+  const acts=docActions(d),st=docStatus(d),evs=[...d.events].sort((a,b)=>a.at-b.at),p=progress(d);
+  const readonly=isShared(d)&&!mySigner(d)&&!isDecider(d)&&!isOrigin(d);
+  return `
+  <a href="#/docs" class="btn btn-ghost btn-sm" style="margin-bottom:16px">${ic("arrowL",16)}返回列表</a>
+  <div class="detail-grid">
+    <div class="card">
+      <div class="d-head"><div class="top">${statusBadge(d)}${progBar(d)}${ballOnMe(d)?`<span class="ball me">${ic("hourglass",12)}待我</span>`:""}${readonly?`<span class="demo-flag">${ic("share",12)}你是檢閱人（唯讀）</span>`:""}<span class="t-no" style="margin-left:auto">${d.no}</span></div>
+        <h2>${esc(d.title)}</h2>
+        <div class="d-meta"><div class="it"><div class="k">發起人</div><div>${USERS[d.originId].name}（${d.originDept}）</div></div>
+          <div class="it"><div class="k">會簽進度</div><div>${p.done} / ${p.total} 已核准</div></div>
+          <div class="it"><div class="k">最終決策者</div><div>${hasDecider(d)?USERS[d.decider.uid].name:"（不指定 · 全部會簽通過）"}</div></div>
+          <div class="it"><div class="k">發起時間</div><div>${fmt(d.created)}</div></div></div></div>
+      <div class="d-body">
+        <div class="sec-l">要執行的項目 / 說明</div><div class="d-desc">${esc(d.content)}</div>
+        ${d.attachments&&d.attachments.length?`<div class="sec-l">附件（${d.attachments.length}）</div><div class="att-grid">${d.attachments.map(a=>attHTML(a)).join("")}</div>`:""}
+        <div class="sec-l">會簽人（平行會簽）</div><div class="signers">${d.signers.map(s=>signerRow(d,s)).join("")}</div>
+        ${hasDecider(d)?`<div class="sec-l">最終決策</div><div class="signers">${deciderRow(d)}</div>`:""}
+        ${(d.shares||[]).length?`<div class="sec-l">分享紀錄（唯讀檢閱）</div><div class="chips">${d.shares.map(s=>`<span class="chip">${ic("share",12)}${USERS[s.by].name} → ${USERS[s.to].name} · ${rel(s.at)}</span>`).join("")}</div>`:""}
+      </div>
+      <div class="card-h" style="border-top:1px solid var(--line-2)">${ic("time",18)}<h3>簽核時間軸</h3><span class="mono">${evs.length} 筆紀錄</span></div>
+      <div class="timeline">${evs.map(evHTML).join("")}</div>
+      ${st==="circulating"&&!readonly?`<div class="commentbox"><div class="row"><textarea id="cmt" placeholder="留言 / 建議…"></textarea><button class="btn btn-primary" onclick="addComment('${d.id}')">${ic("send",16)}送出</button></div></div>`:""}
+    </div>
+    <div class="card side">
+      <div class="card-h"><h3>操作</h3></div>
+      ${acts.length?`<div class="side-sec"><div class="k">${roleLabel(state.user)==="最終決策者"&&isDecider(d)?"決策者":mySigner(d)?"會簽人":"發起人"}</div><div class="actcol">${acts.map(a=>`<button class="btn btn-${a.style}" onclick="${reg(a.fn)}">${ic(a.icon,16)}${a.label}</button>`).join("")}</div></div>`
+        :`<div class="side-sec"><div class="k">操作</div><div style="font-size:12.5px;color:var(--ink-3)">${readonly?"你是檢閱人，僅能查看。":"目前無可執行動作。"}</div></div>`}
+      <div class="side-sec"><div class="k">相關人</div>
+        <div class="who" style="margin-bottom:8px">${avatar(d.originId)}<div><div class="nm">${USERS[d.originId].name}</div><div class="dp">發起人 · ${d.originDept}</div></div></div>
+        ${hasDecider(d)?`<div class="who">${avatar(d.decider.uid)}<div><div class="nm">${USERS[d.decider.uid].name}</div><div class="dp">最終決策者</div></div></div>`:""}</div>
+    </div>
+  </div>`}
+function evHTML(e){const u=USERS[e.by]||{name:"系統"};const x=e.x||{};let txt="",extra="",cls="";const nm=`<b>${u.name}</b>`;
+  switch(e.t){
+    case "created":txt=`${nm} 發起簽呈，會簽 ${(x.signers||[]).map(s=>USERS[s].name).join("、")}${x.decider?`，決策者 <b>${USERS[x.decider].name}</b>`:"（全部會簽即通過）"}`;break;
+    case "signed":txt=`${nm} 會簽核准`;if(x.opinion)extra=esc(x.opinion);break;
+    case "suggest":txt=`${nm} 發起修改建議`;extra=esc(x.text);cls="suggest";break;
+    case "decided_pass":txt=`${nm} 核准通過（核定）`;if(x.opinion)extra=esc(x.opinion);break;
+    case "decided_return":txt=`${nm} 退回重擬`;extra=esc(x.reason);cls="reason";break;
+    case "shared":txt=`${nm} 分享給 <b>${USERS[x.to].name}</b> 檢閱（唯讀）`;break;
+    case "closed":txt=`${nm} 結案（已執行完成）`;if(x.note)extra=esc(x.note);break;
+    case "withdrawn":txt=`${nm} 撤回簽呈`;break;
+    case "resubmitted":{txt=`${nm} 修改後重送（會簽重置）`;const parts=[];
+      (x.fields||[]).forEach(f=>parts.push(`<b>${esc(f.label)}</b> ${esc(f.from)} → ${esc(f.to)}`));
+      if((x.content||[]).length){const lk=reg(()=>showEditContent(x.content));parts.push(`<button class="linklike" onclick="${lk}">${ic("search",12)}查看內容修改</button>`);}
+      extra=parts.length?parts.join("　·　"):"（重新送出，內容未變動）";break;}
+    case "edited":txt=`${nm} 編輯簽呈內容`;break;
+    default:txt=`${nm} 留言`;if(x.text)extra=esc(x.text);
+  }
+  const body=extra?`<div class="tl-comment ${cls}">${extra}</div>`:"";
+  const atts=(x.atts&&x.atts.length)?`<div class="tl-atts">${x.atts.map(a=>attHTML(a,true)).join("")}</div>`:"";
+  return `<div class="tl-item"><div class="tl-dot">${ic(EVENT[e.t]||"send",16)}</div><div class="tl-body"><div class="h">${txt}</div><div class="tm">${fmt(e.at)} · ${rel(e.at)}</div>${body}${atts}</div></div>`}
+
+function viewNew(){const editing=!!state.editingId;
+  return `
+  <a href="#/${editing?"d/"+state.editingId:"docs"}" class="btn btn-ghost btn-sm" style="margin-bottom:16px">${ic("arrowL",16)}${editing?"返回簽呈":"返回列表"}</a>
+  <div class="pagehead"><div><div class="k">${editing?"修改重送":"發起"}</div><h2>${editing?"修改簽呈（重送會重置會簽）":"發起簽呈"}</h2><p>指定會簽人（平行會簽）+ 最終決策者；無時效不計時</p></div></div>
+  <div class="card form-card">
+    <div class="field"><label>主旨<span class="req">*</span></label><input id="f-title" placeholder="一句話描述要執行的項目" value="${esc(draft.title||"")}"></div>
+    <div class="field"><label>申請部門</label><div class="readonly-field">${ic("building",15)}${state.user.dept}<span class="ro-tag">依登入身分</span></div></div>
+    <div class="field"><label>要執行的項目 / 說明<span class="req">*</span></label><textarea id="f-content" placeholder="說明要做什麼、為什麼、影響、預算…">${esc(draft.content||"")}</textarea></div>
+    <div class="field"><label>會簽人（可多選，平行會簽）<span class="req">*</span></label>
+      <div class="picker">${SIGNER_POOL.filter(uid=>uid!==state.user.id).map(uid=>`<label class="pk ${draft.signers.includes(uid)?"on":""}" onclick="toggleSigner('${uid}',this)"><input type="checkbox" ${draft.signers.includes(uid)?"checked":""} onclick="event.preventDefault()"><div><div class="nm">${USERS[uid].name}</div><div class="dp">${USERS[uid].dept}</div></div></label>`).join("")}</div>
+      <div class="hint">勾選需要會簽的人，他們會同時收到、各自核准。</div></div>
+    <div class="field"><label>最終決策者（選填）</label>
+      <select id="f-decider"><option value="" ${!draft.decider?"selected":""}>（不指定 — 全部會簽完成即通過）</option>${DECIDERS.filter(uid=>uid!==state.user.id).map(uid=>`<option value="${uid}" ${draft.decider===uid?"selected":""}>${USERS[uid].name}（${USERS[uid].dept}）</option>`).join("")}</select>
+      <div class="hint">指定時，唯一能「核准通過 / 退回重擬」的人；不指定則全部會簽完成即自動通過。</div></div>
+    <div class="field"><label>附件（選填）</label>
+      <div class="dropzone" onclick="document.getElementById('f-file').click()">${ic("attach",22)}<div class="t">點此選擇圖片 / 文件</div><div class="s">可多選</div></div>
+      <input type="file" id="f-file" multiple style="display:none" onchange="onPickFiles(this)"><div class="filelist" id="filelist">${draft.files.map(fileItemHTML).join("")}</div>
+      <div class="hint">${ic("attach",12)} 測試階段：檔案僅本機預覽，尚未接檔案儲存。</div></div>
+    <div class="form-foot"><a href="#/${editing?"d/"+state.editingId:"docs"}" class="btn btn-ghost">取消</a><button class="btn btn-primary" onclick="submitDoc()">${ic("send",16)}${editing?"修改重送":"送出會簽"}</button></div>
+  </div>`}
+function fileItemHTML(f,i){return `<div class="fileitem"><div class="thumb">${(f.data||f.url)&&f.isImg?`<img src="${esc(f.data||f.url)}">`:ic(f.isImg?"image":"file",18)}</div><div class="meta"><div class="nm">${esc(f.name)}</div><div class="sz">${f.size}</div></div><button class="rm" onclick="removeFile(${i})">${ic("xCircle",18)}</button></div>`}
+function toggleSigner(uid,el){const i=draft.signers.indexOf(uid);const on=i<0;if(on)draft.signers.push(uid);else draft.signers.splice(i,1);if(el){el.classList.toggle("on",on);const cb=el.querySelector("input");if(cb)cb.checked=on;}}
+function onPickFiles(input){EHub.readFiles(input.files,function(arr){arr.forEach(f=>draft.files.push(f));document.getElementById("filelist").innerHTML=draft.files.map(fileItemHTML).join("")});input.value=""}
+function removeFile(i){draft.files.splice(i,1);document.getElementById("filelist").innerHTML=draft.files.map(fileItemHTML).join("")}
+function onCmtFiles(input){EHub.readFiles(input.files,function(arr){arr.forEach(f=>cmtFiles.push(f))});input.value=""}
+function submitDoc(){const title=document.getElementById("f-title").value.trim();const content=document.getElementById("f-content").value.trim();
+  draft.decider=document.getElementById("f-decider").value;
+  if(!title){toast("請填主旨","warn");return}if(!content){toast("請填說明","warn");return}
+  if(!draft.signers.length){toast("請至少指定一位會簽人","warn");return}
+  if(state.editingId){const d=D(state.editingId);
+    const oldS=d.signers.map(s=>s.uid),oldDec=d.decider.uid,oldAtt=(d.attachments||[]).map(a=>a.name).join("|");
+    const newAtt=draft.files.map(a=>a.name).join("|");
+    const fieldCh=[],contentCh=[];
+    if(d.title!==title)contentCh.push({label:"主旨",from:d.title,to:title});
+    if(d.content!==content)contentCh.push({label:"說明 / 要執行項目",from:d.content,to:content});
+    if(oldDec!==draft.decider)fieldCh.push({label:"最終決策者",from:(oldDec?USERS[oldDec].name:"未指定"),to:(draft.decider?USERS[draft.decider].name:"未指定")});
+    if(oldS.join(",")!==draft.signers.join(","))fieldCh.push({label:"會簽人",from:(oldS.map(u=>USERS[u].name).join("、")||"無"),to:(draft.signers.map(u=>USERS[u].name).join("、")||"無")});
+    if(oldAtt!==newAtt)fieldCh.push({label:"附件",from:(d.attachments||[]).length+" 個",to:draft.files.length+" 個（已更新）"});
+    d.title=title;d.content=content;d.attachments=draft.files.slice();
+    d.signers=draft.signers.map(uid=>({uid,st:"pending",opinion:""}));d.decider={uid:draft.decider,st:draft.decider?"pending":"none",opinion:""};d.withdrawn=false;d.closed=false;
+    ev(d,"resubmitted",{fields:fieldCh,content:contentCh});touch(d);
+    d.signers.forEach(s=>notify(s.uid,`簽呈修改後重送，請重新會簽：${title}`,d.id));notify(draft.decider,`簽呈修改後重送：${title}`,d.id);
+    const eid=state.editingId;state.editingId=null;draft={title:"",content:"",signers:[],decider:"gm",files:[]};toast("已修改重送（會簽重置）");go("#/d/"+eid);return}
+  const id="n"+now();const dt=new Date();const p=n=>String(n).padStart(2,"0");
+  const d={id,no:`SP-${dt.getFullYear()}${p(dt.getMonth()+1)}${p(dt.getDate())}-${String(42+DOCS.length).padStart(3,"0")}`,
+    title,content,originId:state.user.id,originDept:state.user.dept,
+    signers:draft.signers.map(uid=>({uid,st:"pending",opinion:""})),decider:{uid:draft.decider,st:draft.decider?"pending":"none",opinion:""},
+    shares:[],withdrawn:false,closed:false,attachments:draft.files.slice(),created:now(),updated:now(),
+    events:[{t:"created",by:state.user.id,at:now(),x:{signers:draft.signers.slice(),decider:draft.decider}}]};
+  DOCS.unshift(d);draft.signers.forEach(uid=>notify(uid,`邀請你會簽：${title}`,id));notify(draft.decider,`待你核定：${title}`,id);
+  draft={title:"",content:"",signers:[],decider:"gm",files:[]};toast("已送出會簽");go("#/d/"+id)}
+
+/* ===== Notifications ===== */
+function viewNotif(){const list=NOTIFS.filter(n=>n.to===state.user.id).sort((a,b)=>b.at-a.at);const un=list.filter(n=>!n.read).length;
+  return `<div class="notif-panel" onclick="event.stopPropagation()"><div class="notif-h">${ic("bell",16)}通知 ${un?`<span style="color:var(--danger)">(${un})</span>`:""}${list.length?`<span class="clr" onclick="markAllRead()">全部已讀</span>`:""}</div>
+    ${list.length?list.map(n=>`<div class="notif ${n.read?"":"unread"}" onclick="openNotif('${n.did}')">${n.read?"":'<div class="dotn"></div>'}<div style="flex:1"><div class="tx">${esc(n.text)}</div><div class="tm">${rel(n.at)}</div></div></div>`).join(""):`<div class="empty" style="padding:30px">${ic("bell",30)}<div>沒有通知</div></div>`}</div>`}
+
+/* ===== Router / shell ===== */
+function setTab(i){state.tab=i;render()}
+function go(h){location.hash=h}
+function switchRole(id){state.user=USERS[id];state.tab=0;state.notifOpen=false;if(state.route.startsWith("#/d/"))go("#/docs");else render();toast("切換為 "+USERS[id].name,"user")}
+function login(){state.user=USERS[document.getElementById("login-role").value];go("#/docs")}
+function logout(){try{localStorage.removeItem("ehub_session");localStorage.removeItem("ehub_role")}catch(e){}location.href="../index.html"}
+function toggleSidebar(){state.sidebarOpen=!state.sidebarOpen;render()}
+function toggleNotif(){state.notifOpen=!state.notifOpen;render()}
+function markAllRead(){NOTIFS.forEach(n=>{if(n.to===state.user.id)n.read=true});render()}
+function openNotif(did){NOTIFS.forEach(n=>{if(n.to===state.user.id&&n.did===did)n.read=true});state.notifOpen=false;go("#/d/"+did)}
+
+function shell(content,active,title){const u=state.user;const cnt=(k,hot)=>k?`<span class="count ${hot?"hot":""}">${k}</span>`:"";const todo=todoCount(),unread=unreadCount();
+  return `<div class="layout">
+    <aside class="sidebar ${state.sidebarOpen?"open":""}">
+      <div class="brand"><div class="logo">${ic("draft",22)}</div><div><b>簽呈通</b><span class="en">E-SIGNOFF</span></div></div>
+      <nav class="nav"><div class="lbl">主選單</div>
+        <a href="#/docs" class="${active==="docs"?"active":""}">${ic("draft",19)}簽呈列表${cnt(todo,todo>0)}</a>
+        <a href="#/new" class="${active==="new"?"active":""}">${ic("add",19)}發起簽呈</a>
+        <div class="lbl" style="margin-top:8px">平台</div>
+        <a href="../index.html" title="回企業平台首頁">${ic("arrowL",19)}回平台首頁</a></nav>
+      <div class="userbox"><div class="ucard"><div class="av">${u.name[0]}</div><div style="flex:1;min-width:0"><div class="nm">${u.name}</div><div class="rl">${roleLabel(u)} · ${u.dept}</div></div><button class="logout" onclick="logout()">${ic("logout",18)}</button></div>
+        <div class="role-pick">切換身分（測試用）</div>
+        <select class="demo-sw" onchange="switchRole(this.value)">${DEMO_ROLES.map(id=>`<option value="${id}" ${u.id===id?"selected":""}>${roleLabel(USERS[id])} — ${USERS[id].name}</option>`).join("")}</select></div>
+    </aside>
+    <div class="scrim ${state.sidebarOpen?"show":""}" onclick="toggleSidebar()"></div>
+    <div class="main"><header class="topbar"><button class="menu-toggle" onclick="toggleSidebar()">${ic("menu",20)}</button><h1>${title}</h1>
+      <div class="search">${ic("search",16)}<input placeholder="搜尋主旨 / 編號…" value="${esc(state.filters.q)}" oninput="state.filters.q=this.value" onkeydown="if(event.key==='Enter'){go('#/docs');render()}"></div>
+      <a href="../index.html" class="iconbtn" title="回企業平台首頁">${ic("home",19)}</a>
+      <button class="iconbtn" onclick="event.stopPropagation();toggleNotif()">${ic("bell",19)}${unread?`<span class="badge-n">${unread}</span>`:""}</button>${state.notifOpen?viewNotif():""}</header>
+      <main class="content">${content}</main></div></div>`}
+
+function render(){const app=document.getElementById("app");_fnreg={};_fnid=0;saveState();syncSignoffBadges();
+  if(!state.user){app.innerHTML=`<div class="login"><div class="login-card"><div class="logo">${ic("draft",28)}</div><h1>簽呈通</h1><div class="en">E-SIGNOFF</div>
+    <p class="sub">電子簽呈 · 會簽 + 決策核定</p>
+    <div class="login-field"><label>帳號</label><input value="demo@company.com" readonly></div>
+    <div class="login-field"><label>以哪個角色登入（測試）</label><select id="login-role">${DEMO_ROLES.map(id=>`<option value="${id}">${roleLabel(USERS[id])} — ${USERS[id].name}（${USERS[id].dept}）</option>`).join("")}</select></div>
+    <button class="btn btn-primary" onclick="login()">${ic("logout",17)}進入系統</button>
+    <div class="login-note">測試階段 · 使用測試資料，尚未接資料庫。<br>切換角色可看發起人 / 會簽人 / 決策者不同視角。</div>
+    <a href="../index.html" style="display:inline-flex;align-items:center;gap:5px;margin-top:14px;font-size:12.5px;color:var(--accent-ink);font-weight:600">${ic("arrowL",15)}回企業平台首頁</a></div></div>`;return}
+  const h=state.route;let body,active,title;
+  if(h.startsWith("#/d/")){body=viewDetail(h.slice(4));active="docs";title="簽呈詳情"}
+  else if(h.startsWith("#/new")){body=viewNew();active="new";title=state.editingId?"修改簽呈":"發起簽呈"}
+  else {body=viewDocs();active="docs";title="簽呈列表"}
+  app.innerHTML=shell(body,active,title)}
+
+window.addEventListener("hashchange",()=>{state.route=location.hash||"#/docs";state.sidebarOpen=false;state.notifOpen=false;if(!state.route.startsWith("#/new"))state.editingId=null;render()});
+document.addEventListener("click",()=>{if(state.notifOpen){state.notifOpen=false;render()}});
+/* 讀首頁登入 session：自動帶身分、跳過簽呈登入畫面。switchRole 仍可在側欄測試切換 */
+function ehubSession(){try{return JSON.parse(localStorage.getItem("ehub_session")||"null")}catch(e){return null}}
+(function(){const s=ehubSession();if(s)state.user=Object.values(USERS).find(x=>x.name===s.name)||USERS[s.role==="admin"?"admin":"u1"];})();
+state.route=location.hash||"#/docs";render();
+</script>
+</body>
+</html>
